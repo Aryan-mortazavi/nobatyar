@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{% block title %}پنل مدیریت{% endblock %} | سامانه نوبت‌دهی</title>
+  <link rel="stylesheet" href="{{ url_for('static', path='style.css') }}" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  {% block head %}{% endblock %}
+</head>
+<body class="{{ '' if is_admin_page else 'plain-page' }}">
+
+{% if is_admin_page %}
+<div class="layout">
+  <aside class="sidebar">
+    <div class="brand">📅 سامانه نوبت‌دهی</div>
+    <nav>
+      {% for href, label in nav_items %}
+        <a class="nav-item {{ 'active' if current_path == href or (href != '/' and current_path.startswith(href)) else '' }}"
+           href="{{ href }}">{{ label }}</a>
+      {% endfor %}
+    </nav>
+    <div class="sidebar-footer">
+      <div class="who">{{ web_admin }}</div>
+      <form method="post" action="/logout">
+        <input type="hidden" name="csrf" value="{{ csrf_token }}" />
+        <button class="btn btn-ghost" type="submit">🚪 خروج</button>
+      </form>
+    </div>
+  </aside>
+  <main class="content">
+{% else %}
+  <main class="content solo">
+{% endif %}
+
+    {% for f in flashes %}
+      <div class="flash {{ f.level }}">{{ f.text }}</div>
+    {% endfor %}
+
+    {% block content %}{% endblock %}
+
+  </main>
+</div>
+
+<script src="{{ url_for('static', path='app.js') }}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

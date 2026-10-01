@@ -1,0 +1,37 @@
+# ---------------------------------------------------------------------------
+# Telegram-Based Online Appointment Booking System
+# Python 3.14 - every version below is the exact version used and tested.
+# Install:  pip install -r requirements.txt
+# ---------------------------------------------------------------------------
+
+# Telegram bot framework
+aiogram==3.31.0
+
+# Database (ORM) + migrations
+SQLAlchemy==2.1.1
+alembic==1.20.0
+
+# Background jobs (reminders, waitlist maintenance)
+APScheduler==3.11.3
+tzdata==2026.4
+
+# Web admin panel
+fastapi==0.141.1
+starlette==1.7.0
+uvicorn==0.54.0
+Jinja2==3.1.6
+itsdangerous==2.2.0          # signed session cookies of the web panel
+python-multipart==0.0.32     # HTML form parsing
+aiofiles==25.1.0             # static files of the web panel
+pydantic==2.13.5
+
+# Persian (Jalali) calendar
+jdatetime==6.1.0
+
+# Configuration
+python-dotenv==1.2.3
+
+# Tests
+pytest==9.1.1
+pytest-asyncio==1.4.0
+httpx==0.28.1                # FastAPI TestClient

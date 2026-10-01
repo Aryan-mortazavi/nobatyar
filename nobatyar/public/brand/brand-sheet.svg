@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 420" width="420" height="420">
+  <title>NobatYar — brand sheet</title>
+  <rect width="420" height="420" fill="#ffffff"/>
+
+  <!-- panel: primary mark -->
+  <g transform="translate(30 26) scale(1.55)">
+    <g stroke="#F5B700" stroke-width="4" stroke-linecap="round">
+      <path d="M2.5 27.5h7" /><path d="M2.5 36.5h4.5" />
+    </g>
+    <path d="M58 39.5A18.5 18.5 0 0 1 39.5 58H58Z" fill="#F5B700"/>
+    <path d="M24 12h22a12 12 0 0 1 12 12v15.5L43.5 58H24a12 12 0 0 1-12-12V24a12 12 0 0 1 12-12Z" fill="#0B1B34"/>
+    <g fill="#0B1B34"><rect x="20" y="4.5" width="7" height="13.5" rx="3.5"/><rect x="39" y="4.5" width="7" height="13.5" rx="3.5"/></g>
+    <path d="M57 41.5 44.5 57.5" stroke="#ffffff" stroke-opacity=".9" stroke-width="1"/>
+    <path d="m23 36.5 6.5 6.5 12.5-13.5" fill="none" stroke="#fff" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <text x="140" y="66" font-family="Inter, Segoe UI, sans-serif" font-size="26" font-weight="700" fill="#0B1B34">Nobat<tspan fill="#F5B700">.</tspan>yar</text>
+  <text x="140" y="86" font-family="Vazirmatn, Segoe UI, sans-serif" font-size="12" fill="#5B6B84">رزرو نوبت، به سادگی</text>
+
+  <!-- row: colour tokens -->
+  <g transform="translate(30 150)">
+    <rect width="108" height="70" rx="14" fill="#0B1B34"/>
+    <text x="14" y="88" font-family="Inter, sans-serif" font-size="10" fill="#5B6B84">Navy · #0B1B34</text>
+  </g>
+  <g transform="translate(150 150)">
+    <rect width="108" height="70" rx="14" fill="#F5B700"/>
+    <text x="0" y="88" font-family="Inter, sans-serif" font-size="10" fill="#5B6B84">Gold · #F5B700</text>
+  </g>
+  <g transform="translate(270 150)">
+    <rect width="108" height="70" rx="14" fill="#7c3aed"/>
+    <text x="0" y="88" font-family="Inter, sans-serif" font-size="10" fill="#5B6B84">Accent · #7c3aed</text>
+  </g>
+
+  <!-- row: sizes / legibility -->
+  <g transform="translate(30 262)">
+    <g transform="scale(0.75)">
+      <g stroke="#F5B700" stroke-width="4" stroke-linecap="round"><path d="M2.5 27.5h7"/><path d="M2.5 36.5h4.5"/></g>
+      <path d="M58 39.5A18.5 18.5 0 0 1 39.5 58H58Z" fill="#F5B700"/>
+      <path d="M24 12h22a12 12 0 0 1 12 12v15.5L43.5 58H24a12 12 0 0 1-12-12V24a12 12 0 0 1 12-12Z" fill="#0B1B34"/>
+      <g fill="#0B1B34"><rect x="20" y="4.5" width="7" height="13.5" rx="3.5"/><rect x="39" y="4.5" width="7" height="13.5" rx="3.5"/></g>
+      <path d="M57 41.5 44.5 57.5" stroke="#fff" stroke-opacity=".9" stroke-width="1"/>
+      <path d="m23 36.5 6.5 6.5 12.5-13.5" fill="none" stroke="#fff" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+    <g transform="translate(58 10) scale(0.5)">
+      <g stroke="#F5B700" stroke-width="4" stroke-linecap="round"><path d="M2.5 27.5h7"/><path d="M2.5 36.5h4.5"/></g>
+      <path d="M58 39.5A18.5 18.5 0 0 1 39.5 58H58Z" fill="#F5B700"/>
+      <path d="M24 12h22a12 12 0 0 1 12 12v15.5L43.5 58H24a12 12 0 0 1-12-12V24a12 12 0 0 1 12-12Z" fill="#0B1B34"/>
+      <g fill="#0B1B34"><rect x="20" y="4.5" width="7" height="13.5" rx="3.5"/><rect x="39" y="4.5" width="7" height="13.5" rx="3.5"/></g>
+      <path d="M57 41.5 44.5 57.5" stroke="#fff" stroke-opacity=".9" stroke-width="1"/>
+      <path d="m23 36.5 6.5 6.5 12.5-13.5" fill="none" stroke="#fff" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+    <g transform="translate(96 18) scale(0.28)">
+      <g stroke="#F5B700" stroke-width="4" stroke-linecap="round"><path d="M2.5 27.5h7"/><path d="M2.5 36.5h4.5"/></g>
+      <path d="M58 39.5A18.5 18.5 0 0 1 39.5 58H58Z" fill="#F5B700"/>
+      <path d="M24 12h22a12 12 0 0 1 12 12v15.5L43.5 58H24a12 12 0 0 1-12-12V24a12 12 0 0 1 12-12Z" fill="#0B1B34"/>
+      <g fill="#0B1B34"><rect x="20" y="4.5" width="7" height="13.5" rx="3.5"/><rect x="39" y="4.5" width="7" height="13.5" rx="3.5"/></g>
+      <path d="M57 41.5 44.5 57.5" stroke="#fff" stroke-opacity=".9" stroke-width="1"/>
+      <path d="m23 36.5 6.5 6.5 12.5-13.5" fill="none" stroke="#fff" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+    <text x="0" y="62" font-family="Inter, sans-serif" font-size="10" fill="#5B6B84">48 · 32 · 24 px</text>
+  </g>
+
+  <text x="30" y="400" font-family="Inter, sans-serif" font-size="10" fill="#94A3B8">Clearspace = 1/2 the ring width · minimum size 16px · never rotate the folded corner</text>
+</svg>

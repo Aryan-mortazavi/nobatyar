@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 64" role="img" aria-label="NobatYar — رزرو نوبت، به سادگی">
+  <title>NobatYar</title>
+  <g transform="translate(0 0) scale(1)">
+    <g stroke="#F5B700" stroke-width="4" stroke-linecap="round">
+      <path d="M2.5 27.5h7" />
+      <path d="M2.5 36.5h4.5" />
+    </g>
+    <path d="M58 39.5A18.5 18.5 0 0 1 39.5 58H58Z" fill="#F5B700" />
+    <path
+      d="M24 12h22a12 12 0 0 1 12 12v15.5L43.5 58H24a12 12 0 0 1-12-12V24a12 12 0 0 1 12-12Z"
+      fill="#0B1B34" />
+    <g fill="#0B1B34">
+      <rect x="20" y="4.5" width="7" height="13.5" rx="3.5" />
+      <rect x="39" y="4.5" width="7" height="13.5" rx="3.5" />
+    </g>
+    <path d="M57 41.5 44.5 57.5" stroke="#ffffff" stroke-opacity="0.9" stroke-width="1" />
+    <path
+      d="m23 36.5 6.5 6.5 12.5-13.5"
+      fill="none"
+      stroke="#ffffff"
+      stroke-width="5.5"
+      stroke-linecap="round"
+      stroke-linejoin="round" />
+  </g>
+  <text
+    x="76"
+    y="34"
+    font-family="Vazirmatn, Inter, 'Segoe UI', system-ui, sans-serif"
+    font-size="27"
+    font-weight="700"
+    fill="#0B1B34"
+    direction="ltr">nobat<tspan fill="#F5B700">.</tspan>yar</text>
+  <text
+    x="77"
+    y="52"
+    font-family="Vazirmatn, Inter, 'Segoe UI', system-ui, sans-serif"
+    font-size="12"
+    font-weight="500"
+    fill="#5B6B84">رزرو نوبت، به سادگی</text>
+</svg>

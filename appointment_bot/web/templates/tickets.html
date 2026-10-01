@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}تیکت‌ها{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <h1>📨 تیکت‌های پشتیبانی <span class="muted small">({{ pager.total }} مورد)</span></h1>
+</div>
+
+<div class="card">
+  <form method="get" action="/tickets" class="filters">
+    <label>
+      وضعیت
+      <select name="status" onchange="this.form.submit()">
+        <option value="">همه</option>
+        {% for s in statuses %}
+          <option value="{{ s }}" {{ 'selected' if status == s else '' }}>{{ ticket_fa(s) }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <noscript><button class="btn btn-primary" type="submit">اعمال</button></noscript>
+  </form>
+</div>
+
+<div class="card">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>#</th><th>کاربر</th><th>پیام</th><th>تاریخ</th><th>وضعیت</th><th></th></tr>
+      </thead>
+      <tbody>
+      {% for ticket in rows %}
+        <tr>
+          <td>{{ ticket.id }}</td>
+          <td>{{ names.get(ticket.id, '—') }}</td>
+          <td>{{ ticket.message[:70] }}</td>
+          <td>{{ jalali(ticket.created_at) }}</td>
+          <td><span class="badge {{ 'ok' if ticket.status == 'answered' else ('warn' if ticket.status == 'open' else 'muted') }}">{{ ticket_fa(ticket.status) }}</span></td>
+          <td><a class="btn btn-sm btn-ghost" href="/tickets/{{ ticket.id }}">مشاهده و پاسخ</a></td>
+        </tr>
+      {% else %}
+        <tr><td colspan="6" class="empty">تیکتی یافت نشد.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% include "_pagination.html" %}
+</div>
+{% endblock %}

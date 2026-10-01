@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}ورود{% endblock %}
+
+{% block content %}
+<div class="login-box">
+  <h1>🔒 ورود به پنل مدیریت</h1>
+  <p class="muted">نام کاربری و گذرواژه را از فایل <code>.env</code> وارد کنید.</p>
+
+  <form method="post" action="/login" class="stack">
+    <input type="hidden" name="csrf" value="{{ csrf_token }}" />
+    <label>
+      نام کاربری
+      <input type="text" name="username" value="{{ username }}" autocomplete="username" required autofocus />
+    </label>
+    <label>
+      گذرواژه
+      <input type="password" name="password" autocomplete="current-password" required />
+    </label>
+    <button class="btn btn-primary" type="submit">ورود</button>
+  </form>
+
+  <p class="muted small">
+    اطلاعات ورود هرگز در کد برنامه قرار نمی‌گیرد؛ فقط از متغیرهای محیطی خوانده می‌شود.
+  </p>
+</div>
+{% endblock %}

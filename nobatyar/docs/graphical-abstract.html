@@ -1,0 +1,374 @@
+<!doctype html>
+<!--
+  Graphical abstract of NobatYar.
+  Rendered to docs/graphical-abstract.png by `npm run abstract` (scripts/render-abstract.ts),
+  which inlines the Vazirmatn/Inter web fonts and screenshots the page at 2× scale.
+-->
+<html lang="fa" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <title>NobatYar — graphical abstract</title>
+    <style>
+      /*FONT_FACE*/
+
+      :root {
+        --navy: #0b1b34;
+        --navy-2: #102544;
+        --navy-3: #16305a;
+        --gold: #f5b700;
+        --gold-soft: #ffd970;
+        --violet: #7c3aed;
+        --sky: #38bdf8;
+        --green: #34d399;
+        --ink: #e8eefc;
+        --muted: #93a4c8;
+        --line: rgba(255, 255, 255, 0.12);
+      }
+
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+
+      html, body { background: #060e1d; }
+
+      body {
+        width: 1600px;
+        min-height: 880px;
+        font-family: "Vazirmatn", "Inter", system-ui, sans-serif;
+        color: var(--ink);
+        background:
+          radial-gradient(1100px 620px at 88% -12%, rgba(245, 183, 0, 0.16), transparent 60%),
+          radial-gradient(900px 620px at 6% 108%, rgba(124, 58, 237, 0.18), transparent 62%),
+          linear-gradient(160deg, #0b1b34 0%, #081326 52%, #060e1d 100%);
+        position: relative;
+        overflow: hidden;
+      }
+
+      /* faint blueprint grid */
+      body::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background-image:
+          linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+        background-size: 48px 48px;
+        mask-image: radial-gradient(1200px 800px at 50% 40%, #000 30%, transparent 85%);
+      }
+
+      .sheet {
+        position: relative;
+        padding: 40px 52px 34px;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+      }
+
+      /* ── header ─────────────────────────────────────────────── */
+      header {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        padding-bottom: 22px;
+        border-bottom: 1px solid var(--line);
+      }
+      .mark { width: 74px; height: 74px; flex: none; }
+      .titles { flex: 1; }
+      h1 {
+        font-size: 40px;
+        font-weight: 800;
+        letter-spacing: -0.01em;
+        line-height: 1.1;
+      }
+      h1 .en {
+        font-family: "Inter", sans-serif;
+        font-size: 27px;
+        font-weight: 600;
+        color: var(--muted);
+        margin-inline-start: 10px;
+        direction: ltr;
+        display: inline-block;
+      }
+      .tagline { color: var(--gold-soft); font-size: 17px; font-weight: 500; margin-top: 4px; }
+      .kicker {
+        text-align: left;
+        font-size: 12.5px;
+        color: var(--muted);
+        line-height: 1.7;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 10px 16px;
+        background: rgba(255, 255, 255, 0.03);
+        direction: ltr;
+      }
+      .kicker b { color: var(--ink); font-weight: 600; }
+
+      /* ── metric strip ──────────────────────────────────────── */
+      .metrics {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 12px;
+        margin: 20px 0 0;
+      }
+      .metric {
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.02));
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 13px 16px;
+      }
+      .metric b {
+        display: block;
+        font-size: 25px;
+        font-weight: 800;
+        line-height: 1.15;
+        direction: ltr;
+        text-align: right;
+      }
+      .metric span { font-size: 12.5px; color: var(--muted); }
+      .metric.gold b { color: var(--gold); }
+      .metric.violet b { color: #c4b5fd; }
+      .metric.sky b { color: var(--sky); }
+      .metric.green b { color: var(--green); }
+
+      /* ── pipeline ───────────────────────────────────────────── */
+      .section-title {
+        font-size: 15px;
+        font-weight: 700;
+        color: var(--muted);
+        margin: 22px 0 10px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .section-title::after {
+        content: "";
+        flex: 1;
+        height: 1px;
+        background: linear-gradient(90deg, var(--line), transparent);
+      }
+
+      .flow { display: grid; grid-template-columns: repeat(5, 1fr); gap: 26px; }
+      .step {
+        position: relative;
+        background: linear-gradient(180deg, rgba(22, 48, 90, 0.85), rgba(11, 27, 52, 0.85));
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        padding: 15px 16px 16px;
+        min-height: 168px;
+      }
+      .step::after {
+        content: "";
+        position: absolute;
+        inset-inline-start: -27px;
+        top: 50%;
+        width: 26px;
+        height: 2px;
+        background: linear-gradient(90deg, rgba(245, 183, 0, 0.75), rgba(245, 183, 0, 0.15));
+      }
+      .step:last-child::after { display: none; }
+      .step .n {
+        font-family: "Inter", sans-serif;
+        font-size: 11px;
+        letter-spacing: 0.16em;
+        color: var(--gold);
+        direction: ltr;
+      }
+      .step h3 { font-size: 18px; font-weight: 700; margin: 3px 0 6px; }
+      .step p { font-size: 12.5px; line-height: 1.75; color: var(--muted); }
+      .step code {
+        font-family: "Inter", monospace;
+        font-size: 11px;
+        color: #c7d3ee;
+        background: rgba(255, 255, 255, 0.06);
+        border-radius: 6px;
+        padding: 1px 5px;
+        direction: ltr;
+        display: inline-block;
+        text-align: right;
+      }
+
+      /* ── features ───────────────────────────────────────────── */
+      .features {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 12px;
+        margin-top: 10px;
+      }
+      .feature {
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 13px 15px;
+      }
+      .feature .row { display: flex; align-items: center; gap: 9px; }
+      .dot { width: 9px; height: 9px; border-radius: 3px; flex: none; }
+      .feature h4 { font-size: 15px; font-weight: 700; }
+      .feature p { font-size: 12px; line-height: 1.7; color: var(--muted); margin-top: 5px; }
+      .feature .en {
+        font-family: "Inter", sans-serif;
+        font-size: 10.5px;
+        color: #7f92b8;
+        direction: ltr;
+        text-align: right;
+        display: block;
+        margin-top: 4px;
+      }
+
+      /* ── footer ─────────────────────────────────────────────── */
+      footer {
+        margin-top: auto;
+        padding-top: 16px;
+        border-top: 1px solid var(--line);
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        font-size: 12.5px;
+        color: var(--muted);
+      }
+      .chip {
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 4px 12px;
+        font-family: "Inter", sans-serif;
+        font-size: 11.5px;
+        color: #cbd6f0;
+        direction: ltr;
+      }
+      .foot-note { margin-inline-start: auto; font-size: 12px; }
+    </style>
+  </head>
+
+  <body>
+    <div class="sheet">
+      <header>
+        <svg class="mark" viewBox="0 0 64 64">
+          <g stroke="#F5B700" stroke-width="4" stroke-linecap="round">
+            <path d="M3 28h7" /><path d="M3 37h5" />
+          </g>
+          <path d="M58 40A18 18 0 0 1 40 58h18Z" fill="#F5B700" />
+          <path
+            d="M24 12h22a12 12 0 0 1 12 12v20L44 58H24a12 12 0 0 1-12-12V24a12 12 0 0 1 12-12Z"
+            fill="#0B1B34"
+            stroke="#F5B700"
+            stroke-width="1.5"
+          />
+          <g fill="#0B1B34">
+            <rect x="20" y="5" width="7" height="13" rx="3.5" />
+            <rect x="39" y="5" width="7" height="13" rx="3.5" />
+          </g>
+          <path
+            d="m23.5 36.5 6.5 6.5 12-13"
+            fill="none" stroke="#ffffff" stroke-width="5.5"
+            stroke-linecap="round" stroke-linejoin="round"
+          />
+        </svg>
+
+        <div class="titles">
+          <h1>نوبت‌یار <span class="en">NobatYar</span></h1>
+          <p class="tagline">رزرو نوبت، به سادگی — سامانهٔ هوشمند نوبت‌دهی آنلاین</p>
+        </div>
+
+        <div class="kicker">
+          <b>Graphical Abstract</b><br />
+          multi-tenant booking platform · fa/en · RTL<br />
+          Jalali calendar · QR + link · 15 data models
+        </div>
+      </header>
+
+      <section class="metrics">
+        <div class="metric gold"><b>2</b><span>زبان کامل با RTL / LTR</span></div>
+        <div class="metric sky"><b>60</b><span>روز افق رزرو (تقویم شمسی)</span></div>
+        <div class="metric violet"><b>12</b><span>نوبت تکرارشونده در یک تراکنش</span></div>
+        <div class="metric green"><b>47+15</b><span>تست واحد + end-to-end</span></div>
+        <div class="metric"><b>2</b><span>لایهٔ تضمین نبودِ رزروِ تکراری</span></div>
+      </section>
+
+      <div class="section-title">مسیر یک رزرو — از اسکن کد تا پیام تأیید</div>
+
+      <section class="flow">
+        <div class="step">
+          <span class="n">01</span>
+          <h3>دسترسی</h3>
+          <p>مشتری با اسکن <b>کد QR</b> یا باز کردن <b>لینک</b> وارد می‌شود؛ هر خدمت کد اختصاصی دارد.</p>
+        </div>
+        <div class="step">
+          <span class="n">02</span>
+          <h3>ویزارد رزرو</h3>
+          <p>خدمت ← کارشناس ← تاریخ شمسی ← ساعت ← مشخصات، با «نزدیک‌ترین زمان آزاد» و انتخاب شعبه.</p>
+        </div>
+        <div class="step">
+          <span class="n">03</span>
+          <h3>موتور زمان‌بندی</h3>
+          <p>تابع خالص: پنجره‌های هفتگی، تعطیلات، مرخصی، بافر، حداقل اطلاع و ادغام چند کارشناس.</p>
+          <p style="margin-top:4px"><code>availability.ts</code></p>
+        </div>
+        <div class="step">
+          <span class="n">04</span>
+          <h3>ثبت اتمی</h3>
+          <p>بررسی دوباره داخل تراکنش + ایندکس یکتای <code>(staffId, startsAt)</code>؛ سری هفتگی و مصرف بسته همین‌جا.</p>
+        </div>
+        <div class="step">
+          <span class="n">05</span>
+          <h3>اعلان‌ها</h3>
+          <p>ایمیل، تلگرام و واتساپ روی یک قرارداد مشترک؛ یادآور ۲۴ و ۱ ساعت، یادآوری لیست انتظار.</p>
+        </div>
+      </section>
+
+      <div class="section-title">قابلیت‌ها</div>
+
+      <section class="features">
+        <div class="feature">
+          <div class="row"><span class="dot" style="background:#f5b700"></span><h4>نوبت تکرارشونده</h4></div>
+          <p>تا ۱۲ جلسهٔ هفتگی؛ همه یا هیچ، با ذکر دقیق هفتهٔ تداخل.</p>
+          <span class="en">recurring series · all-or-nothing</span>
+        </div>
+        <div class="feature">
+          <div class="row"><span class="dot" style="background:#38bdf8"></span><h4>بستهٔ جلسات</h4></div>
+          <p>سهمیه به‌ازای هر خدمت، کسر اتمی هنگام رزرو، اعتبار زمانی.</p>
+          <span class="en">prepaid session bundles</span>
+        </div>
+        <div class="feature">
+          <div class="row"><span class="dot" style="background:#7c3aed"></span><h4>چند شعبه</h4></div>
+          <p>کارشناسان و خدمات مستقل هر شعبه؛ تقویم بر اساس شعبه فیلتر می‌شود.</p>
+          <span class="en">multi-location branches</span>
+        </div>
+        <div class="feature">
+          <div class="row"><span class="dot" style="background:#34d399"></span><h4>تلگرام و واتساپ</h4></div>
+          <p>هشدار رزرو برای کسب‌وکار، تأیید و یادآوری برای مشتری.</p>
+          <span class="en">telegram · whatsapp cloud api</span>
+        </div>
+        <div class="feature">
+          <div class="row"><span class="dot" style="background:#f5b700"></span><h4>لینک و QR</h4></div>
+          <p>کد اصلی و کد اختصاصی هر خدمت (deep link)، خروجی SVG/PNG و پوستر چاپی.</p>
+          <span class="en">qr + link access channel</span>
+        </div>
+        <div class="feature">
+          <div class="row"><span class="dot" style="background:#38bdf8"></span><h4>پنل مدیریت</h4></div>
+          <p>تقویم، نمودار بهره‌وری، CSV، تأیید/لغو/جابه‌جایی نوبت و لاگ ممیزی.</p>
+          <span class="en">dashboard · analytics · csv</span>
+        </div>
+        <div class="feature">
+          <div class="row"><span class="dot" style="background:#7c3aed"></span><h4>لیست انتظار</h4></div>
+          <p>با لغو هر نوبت، آزادشدهٔ بازه به‌صورت خودکار پیشنهاد می‌شود.</p>
+          <span class="en">waitlist with auto-offers</span>
+        </div>
+        <div class="feature">
+          <div class="row"><span class="dot" style="background:#34d399"></span><h4>تقویم شمسی</h4></div>
+          <p>Asia/Tehran، هفتهٔ شروع شنبه، ساعت ۲۴ ساعته و تبدیل دوسویهٔ تاریخ.</p>
+          <span class="en">jalali ⇄ gregorian</span>
+        </div>
+      </section>
+
+      <footer>
+        <span class="chip">Next.js 15</span>
+        <span class="chip">TypeScript</span>
+        <span class="chip">Prisma</span>
+        <span class="chip">Tailwind v4</span>
+        <span class="chip">SQLite → PostgreSQL</span>
+        <span class="chip">Playwright</span>
+        <span class="chip">Docker · CI</span>
+        <span class="foot-note">
+          <b style="color:#e8eefc">نوبت‌یار</b> — محصول آمادهٔ ثبت و درآمدزایی
+        </span>
+      </footer>
+    </div>
+  </body>
+</html>

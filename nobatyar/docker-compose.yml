@@ -1,0 +1,40 @@
+# NobatYar – production stack (app + PostgreSQL)
+#   docker compose up -d --build
+#   docker compose run --rm app npx prisma db push
+#   docker compose run --rm app npm run db:seed
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: nobatyar
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-nobatyar}
+      POSTGRES_DB: nobatyar
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nobatyar"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "5432:5432"
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://nobatyar:${POSTGRES_PASSWORD:-nobatyar}@db:5432/nobatyar?schema=public
+      AUTH_SECRET: ${AUTH_SECRET:?set AUTH_SECRET in .env}
+      CRON_SECRET: ${CRON_SECRET:-}
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+      NEXT_PUBLIC_DEFAULT_LOCALE: ${NEXT_PUBLIC_DEFAULT_LOCALE:-fa}
+    ports:
+      - "3000:3000"
+
+volumes:
+  db-data:

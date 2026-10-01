@@ -1,0 +1,33 @@
+# --- Environments ---
+venv/
+env/
+.venv/
+
+# --- Secrets ---
+.env
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# --- Database files ---
+data/*.db
+data/*.db-journal
+data/*.db-wal
+data/*.db-shm
+
+# --- Logs / temporary ---
+logs/
+*.log
+tmp/
+.temp/
+
+# --- Editors / OS ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

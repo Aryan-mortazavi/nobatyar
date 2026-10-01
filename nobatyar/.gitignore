@@ -1,0 +1,44 @@
+# dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# next.js
+.next/
+out/
+next-env.d.ts
+
+# production
+build/
+dist/
+
+# database (SQLite dev files)
+*.db
+*.db-journal
+prisma/*.db
+prisma/migrations/dev.db*
+
+# env files
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# testing
+coverage/
+.vitest/
+# playwright
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+
+# misc
+.DS_Store
+*.pem
+tsconfig.tsbuildinfo
+.idea/
+.vscode/
+npm-debug.log*
+yarn-error.log*
+.vercel

@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="NobatYar mark">
+  <title>NobatYar</title>
+  <!-- motion lines: "fast booking" -->
+  <g stroke="#F5B700" stroke-width="4" stroke-linecap="round">
+    <path d="M3 28h7" />
+    <path d="M3 37h5" />
+  </g>
+  <!-- yellow folded corner, sits behind the calendar body -->
+  <path d="M58 40A18 18 0 0 1 40 58h18Z" fill="#F5B700" />
+  <!-- calendar body with a chamfered bottom-right corner -->
+  <path
+    d="M24 12h22a12 12 0 0 1 12 12v20L44 58H24a12 12 0 0 1-12-12V24a12 12 0 0 1 12-12Z"
+    fill="#0B1B34" />
+  <!-- binding rings -->
+  <g fill="#0B1B34">
+    <rect x="20" y="5" width="7" height="13" rx="3.5" />
+    <rect x="39" y="5" width="7" height="13" rx="3.5" />
+  </g>
+  <!-- separation between the navy body and the yellow corner -->
+  <path d="M58 44 44 58" stroke="#ffffff" stroke-width="0" />
+  <!-- confirmed check -->
+  <path
+    d="m23.5 36.5 6.5 6.5 12-13"
+    fill="none"
+    stroke="#ffffff"
+    stroke-width="5.5"
+    stroke-linecap="round"
+    stroke-linejoin="round" />
+</svg>

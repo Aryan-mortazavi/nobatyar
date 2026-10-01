@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}لیست انتظار{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <h1>⏳ لیست انتظار <span class="muted small">({{ pager.total }} رکورد)</span></h1>
+</div>
+
+<div class="card">
+  <form method="get" action="/waitlist" class="filters">
+    <label>
+      وضعیت
+      <select name="status" onchange="this.form.submit()">
+        <option value="">همه</option>
+        {% for s in statuses %}
+          <option value="{{ s }}" {{ 'selected' if status == s else '' }}>{{ wait_fa(s) }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <noscript><button class="btn btn-primary" type="submit">اعمال</button></noscript>
+  </form>
+</div>
+
+<div class="card">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th><th>کاربر</th><th>خدمت</th><th>کارشناس</th><th>تاریخ</th><th>ساعت دلخواه</th><th>وضعیت</th><th>عملیات</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for entry in rows %}
+        <tr>
+          <td>{{ entry.id }}</td>
+          <td>{{ entry.user.full_name if entry.user else '—' }}</td>
+          <td>{{ entry.service.name if entry.service else '—' }}</td>
+          <td>{{ entry.staff.name if entry.staff else '—' }}</td>
+          <td>{{ jalali(entry.date) }}</td>
+          <td>{{ hhmm(entry.preferred_time) if entry.preferred_time else '—' }}</td>
+          <td><span class="badge {{ 'ok' if entry.status in ('booked',) else ('warn' if entry.status == 'pending' else 'muted') }}">{{ wait_fa(entry.status) }}</span></td>
+          <td>
+            <div class="row-actions">
+              {% if entry.status in ('pending', 'notified') %}
+                <form method="post" action="/waitlist/{{ entry.id }}/notify">
+                  <input type="hidden" name="csrf" value="{{ csrf_token }}" />
+                  <button class="btn btn-sm btn-primary" type="submit">اطلاع‌رسانی</button>
+                </form>
+                <form method="post" action="/waitlist/{{ entry.id }}/status">
+                  <input type="hidden" name="csrf" value="{{ csrf_token }}" />
+                  <input type="hidden" name="status" value="cancelled" />
+                  <button class="btn btn-sm btn-ghost" type="submit">لغو</button>
+                </form>
+              {% endif %}
+              <form method="post" action="/waitlist/{{ entry.id }}/delete"
+                    data-confirm="این رکورد حذف شود؟">
+                <input type="hidden" name="csrf" value="{{ csrf_token }}" />
+                <button class="btn btn-sm btn-danger" type="submit">حذف</button>
+              </form>
+            </div>
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="8" class="empty">رکوردی در لیست انتظار نیست.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% include "_pagination.html" %}
+</div>
+
+<div class="card">
+  <p class="muted small">
+    با لغو هر نوبت، سامانه به‌صورت خودکار کاربران در انتظار همان کارشناس و تاریخ را با دکمه
+    «رزرو این ساعت» باخبر می‌کند؛ دکمه «اطلاع‌رسانی» این عملیات را دستی اجرا می‌کند.
+  </p>
+</div>
+{% endblock %}

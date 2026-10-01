@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}خدمات{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <h1>🛠 خدمات <span class="muted small">({{ total }} مورد)</span></h1>
+  <form method="get" action="/services" class="inline-form">
+    <input type="text" name="q" value="{{ q }}" placeholder="جستجوی نام خدمت" />
+    <button class="btn btn-primary" type="submit">🔎 جستجو</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2>➕ افزودن خدمت جدید</h2>
+  <form method="post" action="/services" class="inline-form">
+    <input type="hidden" name="csrf" value="{{ csrf_token }}" />
+    <label>نام خدمت<input type="text" name="name" required placeholder="مثلاً ویزیت متخصص" /></label>
+    <label>مدت (دقیقه)<input type="number" name="duration" value="30" min="5" step="5" /></label>
+    <label>هزینه (تومان) - فقط نمایشی<input type="number" name="price" value="0" min="0" step="1000" /></label>
+    <label>توضیحات<input type="text" name="description" placeholder="اختیاری" /></label>
+    <button class="btn btn-primary" type="submit">افزودن</button>
+  </form>
+  <p class="muted small">هیچ پرداختی در این سامانه وجود ندارد؛ هزینه صرفاً جنبه اطلاع‌رسانی دارد.</p>
+</div>
+
+<div class="card">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th><th>نام</th><th>مدت</th><th>هزینه</th><th>توضیح</th><th>کارشناسان</th><th>وضعیت</th><th>عملیات</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for service in rows %}
+        <tr>
+          <td>{{ service.id }}</td>
+          <td>{{ service.name }}</td>
+          <td>{{ service.duration }} دقیقه</td>
+          <td>{{ money(service.price) }}</td>
+          <td>{{ service.description[:50] or '—' }}</td>
+          <td>{{ staff_names.get(service.id, '—') }}</td>
+          <td>
+            <span class="badge {{ 'ok' if service.is_active else 'err' }}">
+              {{ 'فعال' if service.is_active else 'غیرفعال' }}
+            </span>
+          </td>
+          <td>
+            <div class="row-actions">
+              <details>
+                <summary class="btn btn-sm btn-ghost" style="list-style:none">✏️ ویرایش</summary>
+                <form method="post" action="/services/{{ service.id }}" class="stack" style="margin-top:8px;min-width:230px">
+                  <input type="hidden" name="csrf" value="{{ csrf_token }}" />
+                  <input type="text" name="name" value="{{ service.name }}" required />
+                  <input type="number" name="duration" value="{{ service.duration }}" min="5" step="5" />
+                  <input type="number" name="price" value="{{ service.price }}" min="0" />
+                  <input type="text" name="description" value="{{ service.description }}" />
+                  <button class="btn btn-sm btn-primary" type="submit">ذخیره</button>
+                </form>
+              </details>
+              <form method="post" action="/services/{{ service.id }}/toggle">
+                <input type="hidden" name="csrf" value="{{ csrf_token }}" />
+                <button class="btn btn-sm {{ 'btn-danger' if service.is_active else 'btn-success' }}" type="submit">
+                  {{ 'غیرفعال' if service.is_active else 'فعال' }}
+                </button>
+              </form>
+              <form method="post" action="/services/{{ service.id }}/delete"
+                    data-confirm="خدمت «{{ service.name }}» حذف شود؟">
+                <input type="hidden" name="csrf" value="{{ csrf_token }}" />
+                <button class="btn btn-sm btn-danger" type="submit">🗑 حذف</button>
+              </form>
+            </div>
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="8" class="empty">خدمتی ثبت نشده است.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% include "_pagination.html" %}
+</div>
+{% endblock %}

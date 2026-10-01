@@ -1,0 +1,512 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// NobatYar – data model
+//
+// Multi-tenant by design: every business (clinic, salon, school, consultant)
+// owns a Workspace and books Customers into Appointments. String "enums" are
+// used instead of Prisma enums so the very same schema also runs on PostgreSQL
+// and MySQL (SQLite has no native enum type).
+// ─────────────────────────────────────────────────────────────────────────────
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  // PostgreSQL (production):
+  //   provider = "postgresql"
+  // SQLite (local development) – no server required:
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ── Tenancy ─────────────────────────────────────────────────────────────────
+
+model Workspace {
+  id          String  @id @default(cuid())
+  slug        String  @unique
+  name        String
+  nameFa      String?
+  tagline     String?
+  description String?
+  logoUrl     String?
+  coverUrl    String?
+  accentColor String  @default("#6366f1")
+
+  // Locale / money / week conventions
+  timezone     String  @default("Asia/Tehran")
+  weekStart    Int     @default(6) // 0 = Sunday … 6 = Saturday
+  defaultLocale String @default("fa")
+  currency     String  @default("IRT")
+  phone        String?
+  email        String?
+  address      String?
+
+  // Booking policy (editable in Settings)
+  minNoticeMinutes      Int     @default(120) // earliest bookable time from now
+  maxAdvanceDays        Int     @default(60)
+  slotStepMinutes       Int     @default(15) // grid granularity
+  defaultBufferBefore   Int     @default(0) // minutes
+  defaultBufferAfter    Int     @default(0)
+  cancellationWindowHrs Int     @default(12)
+  allowGuestBooking     Boolean @default(true)
+  requirePhone          Boolean @default(true)
+  autoConfirm           Boolean @default(true)
+  bookingPageSlug       String  @default("book")
+  isActive              Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members      WorkspaceMember[]
+  categories   Category[]
+  services     Service[]
+  staff        StaffMember[]
+  appointments Appointment[]
+  waitlist     WaitlistEntry[]
+  holidays     Holiday[]
+  tickets      SupportTicket[]
+  notifications Notification[]
+  auditLogs    AuditLog[]
+  locations    Location[]
+  packages     Package[]
+
+  @@index([isActive])
+}
+
+// ── Multi-location ─────────────────────────────────────────────────────────
+
+model Location {
+  id          String   @id @default(cuid())
+  workspaceId String
+  slug        String
+  name        String
+  nameFa      String?
+  address     String?
+  phone       String?
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  workspace    Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  staff        StaffLocation[]
+  services     LocationService[]
+  appointments Appointment[]
+
+  @@unique([workspaceId, slug])
+  @@index([workspaceId, isActive])
+}
+
+model StaffLocation {
+  staffId    String
+  locationId String
+
+  staff    StaffMember @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  location Location    @relation(fields: [locationId], references: [id], onDelete: Cascade)
+
+  @@id([staffId, locationId])
+  @@index([locationId])
+}
+
+model LocationService {
+  locationId String
+  serviceId  String
+
+  location Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  service  Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@id([locationId, serviceId])
+  @@index([serviceId])
+}
+
+// OWNER | ADMIN | MANAGER | STAFF
+model WorkspaceMember {
+  id          String    @id @default(cuid())
+  workspaceId String
+  userId      String
+  role        String    @default("STAFF")
+  createdAt   DateTime  @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId])
+  @@index([userId])
+}
+
+// ── People ─────────────────────────────────────────────────────────────────
+
+// CUSTOMER | STAFF | OWNER | ADMIN (platform level, used by the dashboard guard)
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String
+  name         String
+  phone        String?
+  avatarUrl    String?
+  locale       String    @default("fa")
+  timezone     String?
+  platformRole String    @default("CUSTOMER")
+
+  isActive       Boolean   @default(true)
+  emailVerifiedAt DateTime?
+  lastLoginAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  memberships  WorkspaceMember[]
+  appointments Appointment[]
+  waitlist     WaitlistEntry[]
+  tickets      SupportTicket[]
+  notifications Notification[]
+  auditLogs    AuditLog[]
+  staffProfile StaffMember[]
+  packages     PackagePurchase[]
+
+  @@index([platformRole])
+}
+
+model StaffMember {
+  id          String  @id @default(cuid())
+  workspaceId String
+  userId      String? // optional link to a login (team member)
+  name        String
+  slug        String
+  title       String?
+  bio         String?
+  photoUrl    String?
+  specialty   String?
+  phone       String?
+  isActive    Boolean @default(true)
+  isBookable  Boolean @default(true)
+  sortOrder   Int     @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace     Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user          User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
+  services      StaffService[]
+  locations     StaffLocation[]
+  workingHours  WorkingHour[]
+  timeOff       TimeOff[]
+  appointments  Appointment[]
+  waitlist      WaitlistEntry[]
+
+  @@unique([workspaceId, slug])
+  @@index([workspaceId, isActive])
+}
+
+// weekday: 0 = Sunday … 6 = Saturday (JavaScript convention)
+model WorkingHour {
+  id          String @id @default(cuid())
+  staffId     String
+  weekday     Int
+  startMinute Int
+  endMinute   Int
+  isActive    Boolean @default(true)
+
+  staff StaffMember @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@index([staffId, weekday])
+}
+
+model TimeOff {
+  id        String   @id @default(cuid())
+  staffId   String
+  startsAt  DateTime
+  endsAt    DateTime
+  note      String?
+  createdAt DateTime @default(now())
+
+  staff StaffMember @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@index([staffId, startsAt])
+}
+
+model Holiday {
+  id          String   @id @default(cuid())
+  workspaceId String
+  date        DateTime
+  note        String?
+  createdAt   DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, date])
+  @@index([workspaceId, date])
+}
+
+// ── Catalogue ──────────────────────────────────────────────────────────────
+
+model Category {
+  id          String  @id @default(cuid())
+  workspaceId String
+  slug        String
+  name        String
+  nameFa      String?
+  description String?
+  icon        String?
+  sortOrder   Int     @default(0)
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  services  Service[]
+
+  @@unique([workspaceId, slug])
+  @@index([workspaceId, sortOrder])
+}
+
+model Service {
+  id          String  @id @default(cuid())
+  workspaceId String
+  categoryId  String?
+  slug        String
+  name        String
+  nameFa      String?
+  description String?
+  shortDesc   String?
+
+  durationMin     Int
+  bufferBeforeMin Int @default(0)
+  bufferAfterMin  Int @default(0)
+  priceAmount     Int? // informational only – this product never takes payment
+  currency        String?
+  imageUrl        String?
+  color           String?
+  isActive        Boolean @default(true)
+  isPublic        Boolean @default(true)
+  maxPerDay       Int? // per customer, per day
+  sortOrder       Int     @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  workspace    Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  category     Category?          @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  staff        StaffService[]
+  locations    LocationService[]
+  appointments Appointment[]
+  waitlist     WaitlistEntry[]
+  packages     PackageService[]
+
+  @@unique([workspaceId, slug])
+  @@index([workspaceId, isActive])
+}
+
+model StaffService {
+  staffId   String
+  serviceId String
+  createdAt DateTime @default(now())
+
+  staff   StaffMember @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  service Service     @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@id([staffId, serviceId])
+  @@index([serviceId])
+}
+
+// ── Booking ────────────────────────────────────────────────────────────────
+
+// PENDING | CONFIRMED | COMPLETED | CANCELLED | NO_SHOW
+model Appointment {
+  id            String   @id @default(cuid())
+  workspaceId   String
+  serviceId     String
+  staffId       String
+  locationId    String?
+  customerUserId String?
+
+  // recurring series: all occurrences of one booking share the group id
+  recurrenceGroupId String?
+  recurrenceIndex   Int     @default(0)
+
+  // prepaid package session (pricing is informational – no payment is taken here)
+  packagePurchaseId String?
+
+  customerName  String
+  customerEmail String?
+  customerPhone String?
+
+  startsAt DateTime
+  endsAt   DateTime
+  status   String  @default("PENDING")
+  source   String  @default("WEB") // WEB | ADMIN | API
+
+  trackingCode String @unique
+  notes        String?
+  staffNotes   String?
+  priceAmount  Int?
+
+  cancelReason String?
+  cancelledAt  DateTime?
+  rescheduledFromId String?
+
+  reminded24hAt DateTime?
+  reminded1hAt  DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  workspace       Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  service         Service          @relation(fields: [serviceId], references: [id])
+  staff           StaffMember      @relation(fields: [staffId], references: [id])
+  location        Location?        @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  customer        User?            @relation(fields: [customerUserId], references: [id], onDelete: SetNull)
+  packagePurchase PackagePurchase? @relation(fields: [packagePurchaseId], references: [id], onDelete: SetNull)
+
+  // Hard guarantee against two bookings for the same staff member at the same
+  // instant, even under concurrent requests.
+  @@unique([staffId, startsAt])
+  @@index([workspaceId, startsAt])
+  @@index([workspaceId, status])
+  @@index([customerUserId, startsAt])
+  @@index([recurrenceGroupId])
+  @@index([locationId, startsAt])
+}
+
+// ── Packages / prepaid session bundles ─────────────────────────────────────
+
+// ACTIVE | EXPIRED | CANCELLED
+model Package {
+  id          String   @id @default(cuid())
+  workspaceId String
+  slug        String
+  name        String
+  nameFa      String?
+  description String?
+  priceAmount Int
+  currency    String?
+  validDays   Int      @default(90)
+  isActive    Boolean  @default(true)
+  isPublic    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  services  PackageService[]
+  purchases PackagePurchase[]
+
+  @@unique([workspaceId, slug])
+  @@index([workspaceId, isActive])
+}
+
+model PackageService {
+  packageId String
+  serviceId String
+  quantity  Int     @default(1)
+
+  package Package @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@id([packageId, serviceId])
+  @@index([serviceId])
+}
+
+model PackagePurchase {
+  id             String   @id @default(cuid())
+  packageId      String
+  workspaceId    String
+  customerUserId String?
+  customerName   String
+  customerEmail  String?
+  customerPhone  String
+
+  totalSessions Int
+  usedSessions  Int      @default(0)
+  amountPaid    Int
+  status        String   @default("ACTIVE") // ACTIVE | EXPIRED | CANCELLED
+  purchasedAt   DateTime @default(now())
+  expiresAt     DateTime
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  package      Package       @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  customer     User?         @relation(fields: [customerUserId], references: [id], onDelete: SetNull)
+  appointments Appointment[]
+
+  @@index([workspaceId, status])
+  @@index([customerUserId, status])
+}
+
+// PENDING | NOTIFIED | BOOKED | EXPIRED | CANCELLED
+model WaitlistEntry {
+  id          String    @id @default(cuid())
+  workspaceId String
+  serviceId   String
+  staffId     String?
+  customerUserId String?
+  customerName String
+  customerPhone String
+  customerEmail String?
+
+  preferredDate  DateTime?
+  preferredStartMinute Int?
+  status         String    @default("PENDING")
+  notes          String?
+  notifiedAt     DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  workspace Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  service   Service     @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  staff     StaffMember? @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  customer  User?       @relation(fields: [customerUserId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, status])
+  @@index([serviceId, status])
+}
+
+// OPEN | ANSWERED | CLOSED
+model SupportTicket {
+  id          String   @id @default(cuid())
+  workspaceId String
+  userId      String?
+  message     String
+  adminReply  String?
+  status      String   @default("OPEN")
+  createdAt   DateTime @default(now())
+  answeredAt  DateTime?
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, status])
+  @@index([userId])
+}
+
+// Out-of-system messages: reminders, waitlist offers, exports.
+model Notification {
+  id          String    @id @default(cuid())
+  workspaceId String?
+  userId      String?
+  type        String    @default("appointment_created")
+  channel     String    @default("TELEGRAM")
+  message     String
+  isSent      Boolean   @default(false)
+  error       String?
+  createdAt   DateTime  @default(now())
+
+  workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isSent])
+  @@index([workspaceId, createdAt])
+}
+
+// ── Security / audit ───────────────────────────────────────────────────────
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  workspaceId String?
+  actorUserId String?
+  actorEmail  String?
+  action      String
+  entity      String?
+  entityId    String?
+  meta        String? // JSON encoded (SQLite has no JSON column type)
+  ip          String?
+  createdAt   DateTime @default(now())
+
+  workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  actor     User?      @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, createdAt])
+  @@index([action])
+}

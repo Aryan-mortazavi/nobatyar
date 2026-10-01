@@ -1,5 +1,8 @@
 # NobatYar — نوبت‌یار
 
+> 📖 **New here?** Read the [Complete Guide](../GUIDE.md) — how it works, every
+> screen, every panel, and how to run it from zero.
+
 ![Graphical abstract of NobatYar](docs/graphical-abstract.png)
 
 > **سامانه هوشمند رزرو نوبت آنلاین** — لینک و کد QR، تقویم شمسی، پنل مدیریت و یادآوری خودکار.
@@ -182,6 +185,59 @@ notification row, and the dashboard (`/dashboard/notifications`) shows exactly w
 went out and which are still pending. The reminder sweep is idempotent — `reminded24hAt` /
 `reminded1hAt` guarantee a reminder is sent once, however often the cron job runs.
 
+A customer who linked a Telegram account also receives their messages **there**, so a booking
+made on the website produces a Telegram message and the other way round.
+
+---
+
+## Channel API (the Telegram bot, and any future integration)
+
+`/api/v1/*` is how anything that is not a browser talks to the app. Today that is the
+Telegram bot in [`../appointment_bot`](../appointment_bot); tomorrow it could be WhatsApp, a
+call centre, or a partner's site.
+
+**One owner of the calendar.** A channel never keeps its own appointments or availability
+logic — it asks this app and sends the customer's choice back. Two systems that each own a
+calendar will eventually disagree, and that disagreement is a double booking.
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| `GET` | `/api/v1/catalogue` | workspace, services, staff, branches and **labels** — one call fills the channel's whole menu |
+| `POST` | `/api/v1/customers/identify` | Telegram account + mobile number → a real `User` + a customer token |
+| `GET` | `/api/v1/availability` | the free slots of one day, or a heat map of the horizon |
+| `POST` | `/api/v1/appointments` | book — weekly series and package sessions supported |
+| `GET` | `/api/v1/appointments` | the customer's own list (`scope=upcoming\|history\|all`) |
+| `POST` | `/api/v1/appointments/{code}/cancel` | cancel, then offer the freed slot to the waitlist |
+| `GET` | `/api/v1/packages` | remaining prepaid sessions, per service |
+| `POST` | `/api/v1/waitlist` | "tell me when something frees up" |
+| `POST` | `/api/v1/support` | a message into the same ticket queue the website uses |
+
+**Two credentials, useless apart:**
+
+```
+Authorization: Bearer <CHANNEL_API_SECRET>   "I am a channel"
+X-Customer-Token: <jwt>                      "…and this is the customer"
+```
+
+The channel secret is compared in constant time and the API **fails closed**: without
+`CHANNEL_API_SECRET` every route answers `503 CHANNEL_NOT_CONFIGURED`, so a half-configured
+deployment is never trusted. The customer token is minted by `identify` (90 days) and carries
+the Telegram id, which is cross-checked against `X-Telegram-Id` — a token replayed from
+another chat is refused.
+
+**Identity adoption.** `identify` matches, in order: the same `telegramId`, then the same
+phone number. The second case *adopts* the existing account, so someone who already booked on
+the website keeps their history and packages instead of becoming a second, empty customer.
+Numbers are normalised in `src/lib/phone.ts` (Persian digits, `+98`, `0098`, spaces), because
+one person must never end up with two accounts.
+
+Wording is served by the API (`channel.*` in the dictionary), so a channel renders the
+product's own words instead of shipping a second copy of the Persian strings.
+
+```bash
+npm run channel:smoke     # 34 checks: the gate, identity, booking, cancel, packages…
+```
+
 ---
 
 ## The availability engine
@@ -308,7 +364,8 @@ Sign in as the customer to see the "use one of my sessions" option in the bookin
 - [x] End-to-end suite (Playwright)
 - [ ] Rooms and resources per branch (a room can be booked like a specialist)
 - [ ] Online intake forms per service
-- [ ] Public API + webhooks (the notification transport is already injectable)
+- [x] Channel API for the Telegram bot (one owner of the calendar, identity adoption)
+- [ ] Public API docs + webhooks (the `/api/v1` contract already exists)
 - [ ] Load tests for the booking action
 - [ ] SMS as a fourth transport (Iranian gateways: Kavenegar / SMS.ir)
 

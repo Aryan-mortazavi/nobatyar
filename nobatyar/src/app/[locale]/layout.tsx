@@ -119,6 +119,7 @@ export default async function LocaleLayout({
                   pricing: t.nav.pricing,
                   faq: t.nav.faq,
                   book: t.nav.book,
+                  myAppointments: t.nav.myAppointments,
                   dashboard: t.nav.dashboard,
                   login: t.nav.login,
                   register: t.nav.register,

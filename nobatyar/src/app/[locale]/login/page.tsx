@@ -27,6 +27,16 @@ export default async function LoginPage({
   const typed = locale as Locale;
   const t = getDictionary(typed);
 
+  // The demo hint prints a real account's password on the page. That is a
+  // convenience while developing and a published vulnerability the moment this
+  // is deployed, so it must never survive a production build. The
+  // authoritative check is the database, not the environment: make sure the
+  // seeded accounts are removed before going live.
+  const demo =
+    process.env.NODE_ENV === "production"
+      ? undefined
+      : { email: "owner@nobatyar.app", password: "Nobat#2026" };
+
   return (
     <div className="container-page grid place-items-center py-16">
       <AuthForm
@@ -34,7 +44,7 @@ export default async function LoginPage({
         locale={typed}
         t={t}
         {...(query.next ? { next: query.next } : {})}
-        demo={{ email: "owner@nobatyar.app", password: "Nobat#2026" }}
+        demo={demo}
       />
     </div>
   );

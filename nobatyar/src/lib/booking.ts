@@ -11,6 +11,9 @@ import { prisma } from "./db";
 import { audit, getSession } from "./auth";
 import { civilOf } from "./dates";
 import { verifySlot } from "./availability-server";
+import { holdsSlot, slotKeyOf } from "./slot-key";
+
+export { holdsSlot, slotKeyOf } from "./slot-key";
 
 export const ACTIVE_STATUSES = ["PENDING", "CONFIRMED"] as const;
 
@@ -133,6 +136,8 @@ export async function createAppointment(input: BookingInput): Promise<BookingRes
           priceAmount: service.priceAmount,
           notes: input.notes ?? null,
           packagePurchaseId,
+          // reserve the slot: the unique index refuses a concurrent second claim
+          slotKey: slotKeyOf(input.staffId, start),
         },
         select: { id: true, trackingCode: true, status: true },
       });
@@ -174,7 +179,7 @@ export async function updateAppointmentStatus(params: {
 }): Promise<{ ok: true } | { ok: false; error: "NOT_FOUND" | "INVALID_TRANSITION" }> {
   const appointment = await prisma.appointment.findUnique({
     where: { id: params.appointmentId },
-    select: { id: true, status: true, workspaceId: true, customerUserId: true, staffId: true },
+    select: { id: true, status: true, workspaceId: true, customerUserId: true, staffId: true, slotKey: true },
   });
   if (!appointment) return { ok: false, error: "NOT_FOUND" };
   if (!TRANSITIONS[appointment.status]?.includes(params.status)) {
@@ -187,6 +192,8 @@ export async function updateAppointmentStatus(params: {
       status: params.status,
       cancelledAt: params.status === "CANCELLED" ? new Date() : null,
       cancelReason: params.status === "CANCELLED" ? (params.reason ?? null) : null,
+      // give the slot back: this is what makes the time bookable again
+      slotKey: holdsSlot(params.status) ? appointment.slotKey : null,
     },
   });
 
@@ -247,7 +254,8 @@ export async function rescheduleAppointment(params: {
     const created = await prisma.$transaction(async (tx) => {
       await tx.appointment.update({
         where: { id: appointment.id },
-        data: { status: "CANCELLED", cancelledAt: new Date(), cancelReason: "rescheduled" },
+        // the old time is given back to the calendar
+        data: { status: "CANCELLED", cancelledAt: new Date(), cancelReason: "rescheduled", slotKey: null },
       });
       return tx.appointment.create({
         data: {
@@ -266,6 +274,7 @@ export async function rescheduleAppointment(params: {
           priceAmount: appointment.priceAmount,
           rescheduledFromId: appointment.id,
           source: "ADMIN",
+          slotKey: slotKeyOf(staffId, params.newStartMs),
         },
         select: { id: true },
       });

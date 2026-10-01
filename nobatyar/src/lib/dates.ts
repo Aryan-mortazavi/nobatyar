@@ -214,6 +214,19 @@ export function parseDateKey(key: string): CivilDate {
   return { year: y, month: m, day: d };
 }
 
+/**
+ * Do two instants fall on the same calendar day in this timezone?
+ *
+ * The only correct way to compare "days" for a business: an appointment at
+ * 22:00 Tehran on the 1st is *not* the same day as one at 02:00 UTC on the 1st,
+ * even though the UTC dates match. A null instant matches nothing.
+ */
+export function sameCivilDay(a: Date | null, b: CivilDate, timeZone: string): boolean {
+  if (!a) return false;
+  const left = civilOf(a, timeZone);
+  return left.year === b.year && left.month === b.month && left.day === b.day;
+}
+
 // ── Presentation ───────────────────────────────────────────────────────────
 
 export type CalendarSystem = "gregory" | "persian";

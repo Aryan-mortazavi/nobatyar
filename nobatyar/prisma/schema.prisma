@@ -153,6 +153,15 @@ model User {
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
+  // ── channel identities ───────────────────────────────────────────────────
+  // A customer is one person with possibly several front doors: the web app,
+  // a Telegram account, WhatsApp… Each channel links to the same User row, so
+  // an appointment booked in Telegram is visible on the web immediately.
+  telegramId       String?   @unique
+  telegramUsername String?
+  telegramLinkedAt DateTime?
+  whatsappPhone    String?
+
   memberships  WorkspaceMember[]
   appointments Appointment[]
   waitlist     WaitlistEntry[]
@@ -163,6 +172,7 @@ model User {
   packages     PackagePurchase[]
 
   @@index([platformRole])
+  @@index([phone])
 }
 
 model StaffMember {
@@ -327,9 +337,17 @@ model Appointment {
   startsAt DateTime
   endsAt   DateTime
   status   String  @default("PENDING")
-  source   String  @default("WEB") // WEB | ADMIN | API
+  source   String  @default("WEB") // WEB | ADMIN | API | TELEGRAM | WHATSAPP
 
   trackingCode String @unique
+
+  // The heart of the double-booking guarantee: `staffId:startsAt` is unique
+  // *while the appointment holds the slot*, and set back to NULL the moment it
+  // is cancelled. A plain unique index on (staffId, startsAt) would keep the
+  // slot reserved for ever — one cancellation would make that time unbookable
+  // for the rest of the calendar's life. NULLs are exempt from a unique index
+  // in SQLite and PostgreSQL alike, which is what makes "freeing" possible.
+  slotKey String? @unique
   notes        String?
   staffNotes   String?
   priceAmount  Int?
@@ -351,8 +369,9 @@ model Appointment {
   packagePurchase PackagePurchase? @relation(fields: [packagePurchaseId], references: [id], onDelete: SetNull)
 
   // Hard guarantee against two bookings for the same staff member at the same
-  // instant, even under concurrent requests.
-  @@unique([staffId, startsAt])
+  // instant, even under concurrent requests — enforced by the unique slotKey
+  // above, which a cancellation releases.
+  @@index([staffId, startsAt])
   @@index([workspaceId, startsAt])
   @@index([workspaceId, status])
   @@index([customerUserId, startsAt])
@@ -461,6 +480,12 @@ model SupportTicket {
   message     String
   adminReply  String?
   status      String   @default("OPEN")
+  // where the question came from: WEB | TELEGRAM | WHATSAPP | API
+  channel     String   @default("WEB")
+  // denormalised so a ticket is still readable if the user is deleted
+  customerName  String?
+  customerEmail String?
+  customerPhone String?
   createdAt   DateTime @default(now())
   answeredAt  DateTime?
 

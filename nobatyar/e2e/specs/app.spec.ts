@@ -3,6 +3,48 @@ import { expect, test, type Page } from "@playwright/test";
 const OWNER = { email: "owner@nobatyar.app", password: "Nobat#2026" };
 const CUSTOMER = { email: "customer@nobatyar.app", password: "Nobat#2026" };
 
+/**
+ * Book one appointment through the channel API and return its tracking code.
+ * Used by the self-service tests, which need a real record to look at.
+ */
+async function bookViaApi(page: Page): Promise<string> {
+  const secret = process.env.CHANNEL_API_SECRET ?? "e2e-channel-secret-at-least-24-chars";
+  const headers = { Authorization: `Bearer ${secret}`, "Content-Type": "application/json" };
+
+  const catalogue = await (await page.request.get("/api/v1/catalogue?locale=fa", { headers })).json();
+  const service = catalogue.data.services[0];
+  const staff = catalogue.data.staff.find((m: any) => service.staffIds.includes(m.id));
+
+  const range = await (
+    await page.request.get(`/api/v1/availability?serviceId=${service.id}&days=40`, { headers })
+  ).json();
+  const day = range.data.days.filter((d: any) => d.bookable).at(-1);
+  const slots = await (
+    await page.request.get(
+      `/api/v1/availability?serviceId=${service.id}&staffId=${staff.id}&date=${day.date}`,
+      { headers },
+    )
+  ).json();
+  const slot = slots.data.slots.find((s: any) => s.available);
+
+  const telegramId = String(Math.floor(Math.random() * 9_000_000_000) + 1_000_000);
+  const phone = `09${String(Math.floor(Math.random() * 1_000_000_000)).padStart(9, "0")}`;
+  const identified = await (
+    await page.request.post("/api/v1/customers/identify", {
+      headers,
+      data: { telegramId, name: "مشتری تست ای۲ای", phone, locale: "fa" },
+    })
+  ).json();
+
+  const booked = await page.request.post("/api/v1/appointments", {
+    headers: { ...headers, "X-Customer-Token": identified.data.token, "X-Telegram-Id": telegramId },
+    data: { serviceId: service.id, staffId: staff.id, slot: slot.start, locale: "fa" },
+  });
+  const body = await booked.json();
+  expect(body.ok, JSON.stringify(body)).toBe(true);
+  return body.data.trackingCode;
+}
+
 /** Sign in through the real form (server action + session cookie). */
 export async function login(page: Page, who = OWNER) {
   await page.goto("/fa/login");
@@ -204,13 +246,60 @@ test.describe("booking flow", () => {
   });
 });
 
+test.describe("customer self-service", () => {
+  test("the link from a confirmation message opens the appointment", async ({ page }) => {
+    // Every confirmation (Telegram, WhatsApp, email) links here, so this page
+    // must never 404 — it was missing for a while and the messages pointed at
+    // nothing.
+    const tracking = await bookViaApi(page);
+    expect(tracking).toMatch(/^APT-[A-Z0-9]{5}$/);
+
+    const content = page.locator("main");
+    await page.goto(`/fa/my-appointments/${tracking}`);
+    // scoped to <main>: Next's route announcer also contains the page title
+    await expect(content.getByText("کد رهگیری")).toBeVisible();
+    await expect(content.getByText(tracking)).toBeVisible();
+  });
+
+  test("the customer's own list opens the same page", async ({ page }) => {
+    // signed in as the demo customer, so these really are *their* bookings
+    await login(page, CUSTOMER);
+    await page.goto("/fa/my-appointments");
+
+    const tracking = page.locator("main a[href*='/my-appointments/']").first();
+    await expect(tracking).toBeVisible();
+    const href = await tracking.getAttribute("href");
+    expect(href).toMatch(/^\/fa\/my-appointments\/APT-[A-Z0-9]{5}$/);
+
+    await tracking.click();
+    await expect(page.locator("main").getByText("کد رهگیری")).toBeVisible();
+  });
+
+  test("a stranger sees the time but not the customer, and cannot cancel", async ({ page }) => {
+    const tracking = await bookViaApi(page);
+
+    // nobody is signed in: the appointment is visible, the personal details are not
+    await page.goto(`/fa/my-appointments/${tracking}`);
+    await expect(page.locator("main").getByText(tracking)).toBeVisible();
+    await expect(page.getByRole("button", { name: /لغو/ })).toHaveCount(0);
+    // it offers a way in instead of silently doing nothing
+    await expect(page.getByRole("link", { name: "ورود" }).first()).toBeVisible();
+  });
+
+  test("an unknown tracking code is a 404, not an empty page", async ({ page }) => {
+    const response = await page.goto("/fa/my-appointments/APT-ZZZZZ");
+    expect(response?.status()).toBe(404);
+  });
+});
+
 test.describe("dashboard", () => {
   test("charts, KPIs and tables render for the owner", async ({ page }) => {
     await login(page);
     await expect(page.getByText("نوبت‌های امروز")).toBeVisible();
     await expect(page.locator("svg.recharts-surface").first()).toBeVisible({ timeout: 20_000 });
 
-    await page.getByRole("link", { name: "نوبت‌ها" }).first().click();
+    // exact: the header also carries «نوبت‌های من», which contains this string
+    await page.getByRole("link", { name: "نوبت‌ها", exact: true }).first().click();
     await expect(page.locator("table")).toBeVisible({ timeout: 20_000 });
     await expect(page.locator("text=APT-").first()).toBeVisible();
   });
@@ -252,5 +341,87 @@ test.describe("dashboard", () => {
     await expect(page.locator("tbody tr").filter({ hasText: code })).toHaveCount(0, {
       timeout: 15_000,
     });
+  });
+
+  test("cancelling a booking frees the slot for the next customer", async ({ request }) => {
+    // Regression guard. With a plain unique index on (staffId, startsAt) the row
+    // stayed behind after a cancellation and that time could never be booked
+    // again — the calendar quietly rotted.
+    // the same value playwright.config.ts injects into the server it starts
+    const secret =
+      process.env.CHANNEL_API_SECRET ?? "e2e-channel-secret-at-least-24-chars";
+    test.skip(!secret, "CHANNEL_API_SECRET is not set");
+
+    // playwright's request options; JSON payloads go through `data`
+    type ApiInit = { method?: string; body?: string; headers?: Record<string, string> };
+    const api = async (path: string, init: ApiInit = {}) =>
+      request.fetch(`${path}`, {
+        method: init.method ?? "GET",
+        headers: {
+          Authorization: `Bearer ${secret}`,
+          "Content-Type": "application/json",
+          ...(init.headers ?? {}),
+        },
+        ...(init.body ? { data: init.body } : {}),
+      });
+
+    const catalogue = await (await api("/api/v1/catalogue?locale=fa")).json();
+    const service = catalogue.data.services[0];
+    const staff = catalogue.data.staff.find((member: any) => service.staffIds.includes(member.id));
+
+    // a day the demo data never reaches, so the test can run repeatedly
+    const range = await (
+      await api(`/api/v1/availability?serviceId=${service.id}&days=40`)
+    ).json();
+    const day = range.data.days.filter((d: any) => d.bookable).at(-1);
+    const slots = await (
+      await api(`/api/v1/availability?serviceId=${service.id}&staffId=${staff.id}&date=${day.date}`)
+    ).json();
+    const slot = slots.data.slots.find((s: any) => s.available);
+
+    // book, cancel, then book the very same instant again
+    const phone = `09${Math.floor(Math.random() * 1_000_000_000)
+      .toString()
+      .padStart(9, "0")}`;
+    const telegramId = String(Math.floor(Math.random() * 9_000_000_000) + 1_000_000);
+    const identifiedResponse = await api("/api/v1/customers/identify", {
+      method: "POST",
+      body: JSON.stringify({ telegramId, name: "تست آزادسازی", phone, locale: "fa" }),
+    });
+    expect(identifiedResponse.status(), await identifiedResponse.text()).toBe(200);
+    const identified = JSON.parse(await identifiedResponse.text());
+    const token = identified.data.token;
+
+    const book = () =>
+      api("/api/v1/appointments", {
+        method: "POST",
+        headers: { "X-Customer-Token": token, "X-Telegram-Id": telegramId },
+        body: JSON.stringify({ serviceId: service.id, staffId: staff.id, slot: slot.start, locale: "fa" }),
+      });
+
+    const first = await book();
+    expect(first.status()).toBe(200);
+    const tracking = (await first.json()).data.trackingCode;
+
+    const cancelled = await api(`/api/v1/appointments/${tracking}/cancel?locale=fa`, {
+      method: "POST",
+      headers: { "X-Customer-Token": token, "X-Telegram-Id": telegramId },
+    });
+    expect(cancelled.status()).toBe(200);
+
+    // the whole point: the same instant must be bookable again
+    const second = await book();
+    expect(
+      second.status(),
+      "a cancelled appointment must release its slot",
+    ).toBe(200);
+
+    if (second.status() === 200) {
+      const secondBody = await second.json();
+      await api(`/api/v1/appointments/${secondBody.data.trackingCode}/cancel?locale=fa`, {
+        method: "POST",
+        headers: { "X-Customer-Token": token, "X-Telegram-Id": telegramId },
+      });
+    }
   });
 });

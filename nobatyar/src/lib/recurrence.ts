@@ -14,6 +14,7 @@ import "server-only";
 
 import { prisma } from "./db";
 import { createAppointment, type BookingInput } from "./booking";
+import { slotKeyOf } from "./slot-key";
 import { civilOf } from "./dates";
 import { minuteOfDay, planSeries } from "./recurrence-plan";
 import { verifySlot } from "./availability-server";
@@ -143,6 +144,7 @@ export async function createRecurringSeries(
             recurrenceIndex: index,
             packagePurchaseId,
             ...(input.locationId ? { locationId: input.locationId } : {}),
+            slotKey: slotKeyOf(input.staffId, start),
           },
           select: { id: true, trackingCode: true },
         });
@@ -180,7 +182,13 @@ export async function cancelSeries(
       recurrenceGroupId: appointment.recurrenceGroupId,
       status: { in: ["PENDING", "CONFIRMED"] },
     },
-    data: { status: "CANCELLED", cancelledAt: new Date(), cancelReason: reason },
+    data: {
+      status: "CANCELLED",
+      cancelledAt: new Date(),
+      cancelReason: reason,
+      // every freed slot goes back on the calendar
+      slotKey: null,
+    },
   });
   return result.count;
 }

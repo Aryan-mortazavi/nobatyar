@@ -4,7 +4,7 @@ import * as React from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CalendarCheck, LogIn, LogOut, Menu, UserPlus, X } from "lucide-react";
+import { CalendarCheck, CalendarRange, LogIn, LogOut, Menu, UserPlus, X } from "lucide-react";
 
 import { ThemeToggle } from "@/components/theme-provider";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,7 @@ export type HeaderLabels = {
   pricing: string;
   faq: string;
   book: string;
+  myAppointments: string;
   dashboard: string;
   login: string;
   register: string;
@@ -119,6 +120,12 @@ export function SiteHeader({
           <ThemeToggle />
           {user ? (
             <>
+              <Button asChild variant="ghost" size="sm" className="hidden xl:inline-flex">
+                <Link href={`/${locale}/my-appointments`}>
+                  <CalendarRange aria-hidden />
+                  {labels.myAppointments}
+                </Link>
+              </Button>
               <Button asChild variant="ghost" size="sm">
                 <Link href={`/${locale}/dashboard`}>
                   <CalendarCheck aria-hidden />

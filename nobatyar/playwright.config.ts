@@ -47,6 +47,8 @@ export default defineConfig({
       AUTH_SECRET: "e2e-secret-key-at-least-32-characters-long",
       NEXT_PUBLIC_APP_URL: baseURL,
       NEXT_PUBLIC_DEFAULT_LOCALE: "fa",
+      // the channel API must be configured for the integration test to run
+      CHANNEL_API_SECRET: process.env.CHANNEL_API_SECRET ?? "e2e-channel-secret-at-least-24-chars",
     },
   },
 });

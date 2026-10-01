@@ -43,15 +43,23 @@ type AppointmentForMessage = {
   workspace: { name: string; nameFa: string | null; timezone: string; phone: string | null };
 };
 
+/**
+ * Which channels each kind of message prefers.
+ *
+ * Telegram sits alongside WhatsApp for customer-facing messages: a customer
+ * who introduced themselves to the bot gets confirmations and reminders *in
+ * Telegram*, no matter which front door they booked through. The business-side
+ * alert is the only kind that is Telegram-first.
+ */
 const kindChannels: Record<NotificationKind, Channel[]> = {
-  appointment_created: ["EMAIL", "WHATSAPP"],
-  appointment_cancelled: ["EMAIL", "WHATSAPP"],
-  appointment_rescheduled: ["EMAIL", "WHATSAPP"],
-  appointment_reminder_24h: ["WHATSAPP", "EMAIL"],
-  appointment_reminder_1h: ["WHATSAPP", "EMAIL"],
-  waitlist_offer: ["WHATSAPP", "EMAIL"],
+  appointment_created: ["TELEGRAM", "WHATSAPP", "EMAIL"],
+  appointment_cancelled: ["TELEGRAM", "WHATSAPP", "EMAIL"],
+  appointment_rescheduled: ["TELEGRAM", "WHATSAPP", "EMAIL"],
+  appointment_reminder_24h: ["TELEGRAM", "WHATSAPP", "EMAIL"],
+  appointment_reminder_1h: ["TELEGRAM", "WHATSAPP", "EMAIL"],
+  waitlist_offer: ["TELEGRAM", "WHATSAPP", "EMAIL"],
   new_booking_alert: ["TELEGRAM", "EMAIL"],
-  package_purchased: ["EMAIL", "WHATSAPP"],
+  package_purchased: ["TELEGRAM", "EMAIL", "WHATSAPP"],
 };
 
 /** Human message for one appointment, in the reader's language. */
@@ -75,24 +83,26 @@ export async function buildMessage(
       : "";
   const head = `${business}${where}\n${when}\n${service} — ${appointment.staff.name}`;
   const manage = `${appUrl}/${locale}/my-appointments/${appointment.trackingCode}`;
+  // the same URL the customer booked from, so "cancel" is one tap away in chat
+  const manageLabel = t.channel.viewOnWeb;
 
   switch (kind) {
     case "appointment_created":
-      return `${t.booking.successTitle}${series}\n${head}\n${tracking}\n${manage}`;
+      return `${t.channel.confirmed}${series}\n${head}\n${tracking}\n${manageLabel}: ${manage}`;
     case "appointment_cancelled":
-      return `${t.dashboard.appointments.cancel}\n${head}\n${tracking}`;
+      return `${t.channel.cancelled}\n${head}\n${tracking}`;
     case "appointment_rescheduled":
-      return `${t.dashboard.appointments.reschedule}\n${head}\n${tracking}\n${manage}`;
+      return `${t.channel.adminRescheduled}\n${head}\n${tracking}\n${manageLabel}: ${manage}`;
     case "appointment_reminder_24h":
-      return `${t.features.reminders.title}\n${head}\n${tracking}`;
+      return `${t.channel.adminReminder24h}\n${head}\n${tracking}\n${manageLabel}: ${manage}`;
     case "appointment_reminder_1h":
-      return `${t.booking.pickTime}\n${head}\n${tracking}`;
+      return `${t.channel.adminReminder1h}\n${head}\n${tracking}\n${manageLabel}: ${manage}`;
     case "waitlist_offer":
-      return `${t.dashboard.waitlist.title}\n${head}\n${tracking}\n${manage}`;
+      return `${t.channel.waitlistOffer}\n${head}\n${tracking}\n${manageLabel}: ${manage}`;
     case "new_booking_alert":
-      return `🔔 ${t.booking.successTitle}\n${appointment.customerName} · ${service}\n${when}`;
+      return `🔔 ${t.channel.adminNewBooking}\n${appointment.customerName} · ${service}\n${when}`;
     case "package_purchased":
-      return `${t.booking.trackingCode}\n${head}\n${tracking}`;
+      return `${t.channel.packagesTitle}\n${business}\n${tracking}`;
   }
 }
 
@@ -131,14 +141,25 @@ export async function notify(params: NotifyParams): Promise<NotifyResult> {
   });
 
   const isTeamAlert = params.kind === "new_booking_alert";
+
+  // A customer who linked a Telegram account gets their messages there, no
+  // matter which door they came through. Resolved from the appointment so no
+  // caller has to remember to pass it.
+  let telegramId = params.to?.telegramId ?? null;
+  if (!telegramId && params.userId) {
+    const owner = await prisma.user.findUnique({
+      where: { id: params.userId },
+      select: { telegramId: true },
+    });
+    telegramId = owner?.telegramId ?? null;
+  }
+
   const recipients = isTeamAlert
     ? adminRecipients()
     : [
         ...(params.to?.email ? [{ channel: "EMAIL" as Channel, to: params.to.email }] : []),
         ...(params.to?.phone ? [{ channel: "WHATSAPP" as Channel, to: params.to.phone }] : []),
-        ...(params.to?.telegramId
-          ? [{ channel: "TELEGRAM" as Channel, to: params.to.telegramId }]
-          : []),
+        ...(telegramId ? [{ channel: "TELEGRAM" as Channel, to: telegramId }] : []),
       ];
 
   if (recipients.length === 0) {

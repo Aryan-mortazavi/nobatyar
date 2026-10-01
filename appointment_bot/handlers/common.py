@@ -1,8 +1,8 @@
 """
-Shared handlers + helpers used by every router.
+Shared handlers and helpers.
 
-This router is registered FIRST, so "❌ انصراف" and "🔙 بازگشت به منو" always
-work - the user can never get trapped inside a multi-step flow.
+Registered first, so «❌ انصراف» always works and no customer can get stuck
+inside a multi-step flow.
 """
 
 from __future__ import annotations
@@ -14,27 +14,65 @@ from aiogram.filters import StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 
-from database.models import User
-from database.session import session_scope
-from keyboards.user_keyboard import main_menu
-from utils.constants import BTN_BACK_TO_MENU, BTN_CANCEL, MENU_TITLE
+from channel.api import Catalogue, ChannelError, ChannelUnavailable
+from channel.runtime import get_api
+from channel.session import Session
+from channel.text import error_text
+from keyboards.channel_keyboard import FALLBACK, cancel_keyboard, main_menu
 
 router = Router(name="common")
 logger = logging.getLogger(__name__)
+
+BTN_CANCEL = FALLBACK["cancel"]
+
+
+# ---------------------------------------------------------------------------
+# Helpers used by every handler
+# ---------------------------------------------------------------------------
+def session(message: Message, state: FSMContext) -> Session:
+    """Build the per-chat session bound to the shared API client."""
+    user = message.from_user
+    return Session(
+        api=get_api(),
+        state=state,
+        telegram_id=user.id if user else 0,
+        username=user.username if user else None,
+    )
+
+
+async def safe_catalogue(chat: Session) -> Catalogue | None:
+    """
+    The catalogue, or ``None`` when the web app cannot be reached.
+
+    Handlers use this to keep the flow alive (the customer can still press
+    «❌ انصراف») instead of raising inside a Telegram handler.
+    """
+    try:
+        return await chat.catalogue()
+    except (ChannelError, ChannelUnavailable) as exc:
+        logger.warning("catalogue unavailable: %s", exc)
+        return None
+
+
+async def go_home(message: Message, state: FSMContext, greeting: str = "") -> None:
+    """Clear the flow and show the main menu."""
+    chat = session(message, state)
+    await state.clear()
+    catalogue = await safe_catalogue(chat)
+    text = "یکی از گزینه‌های زیر را انتخاب کنید:"
+    if catalogue:
+        title = catalogue.workspace.title
+        text = f"🏥 <b>{title}</b>\n\n{text}"
+    if greeting:
+        text = f"{greeting}\n\n{text}"
+    await message.answer(text, reply_markup=main_menu(catalogue))
 
 
 # ---------------------------------------------------------------------------
 # Universal escape buttons
 # ---------------------------------------------------------------------------
-async def go_home(message: Message, state: FSMContext) -> None:
-    """Clear any FSM state and show the main menu."""
-    await state.clear()
-    await message.answer(MENU_TITLE, reply_markup=main_menu())
-
-
-@router.message(F.text.in_({BTN_CANCEL, BTN_BACK_TO_MENU}), StateFilter("*"))
+@router.message(F.text == BTN_CANCEL, StateFilter("*"))
 async def cancel_flow(message: Message, state: FSMContext) -> None:
-    """❌ انصراف / 🔙 بازگشت به منو -> always safe."""
     await go_home(message, state)
 
 
@@ -46,41 +84,40 @@ async def ignore_callback(callback: CallbackQuery) -> None:
 
 @router.callback_query(F.data == "menu:home")
 async def home_callback(callback: CallbackQuery, state: FSMContext) -> None:
-    """🏠 button placed at the end of several inline keyboards."""
     await state.clear()
-    await callback.message.edit_text(MENU_TITLE)
     await callback.answer()
+    if callback.message:
+        await go_home(callback.message, state)
 
 
 # ---------------------------------------------------------------------------
-# Small helpers shared by the other handler modules
+# Error reporting
 # ---------------------------------------------------------------------------
-async def require_registered(message: Message, state: FSMContext) -> User | None:
+async def report_api_error(
+    target: Message | CallbackQuery, catalogue: Catalogue | None, exc: Exception
+) -> None:
     """
-    Return the registered User of this chat, or answer with a hint and None.
+    Turn an API failure into one helpful sentence.
 
-    Booking, profile and appointments are only available after registration.
-    The returned object is detached from the session but every column it needs
-    (id, telegram_id, name, phone, role, is_active) is already loaded.
+    A Telegram user never sees an HTTP status, a stack trace, or a silent
+    nothing-happened.
     """
-    from services import user_service
-
-    telegram_id = message.from_user.id if message.from_user else 0
-    with session_scope() as session:
-        user = user_service.get_by_telegram(session, telegram_id)
-
-    if user is None:
-        await message.answer(
-            "❌ هنوز ثبت‌نام نکرده‌اید.\nبرای شروع /start را بزنید."
+    if isinstance(exc, ChannelUnavailable):
+        logger.error("web app unreachable: %s", exc)
+        text = (
+            "⚠️ در حال حاضر امکان ارتباط با سامانهٔ رزرو نیست.\n"
+            "لطفاً چند دقیقهٔ دیگر دوباره تلاش کنید."
         )
-        await state.clear()
-        return None
-    return user
+    elif isinstance(exc, ChannelError) and exc.slot_taken:
+        text = catalogue.label("slotTaken", "") if catalogue else ""
+        text = text or "این بازه هم‌اکنون رزرو شد. لطفاً زمان دیگری انتخاب کنید."
+    else:
+        text = error_text(catalogue)
+        logger.warning("channel API error: %s", exc)
+    if isinstance(target, CallbackQuery):
+        await target.answer(text, show_alert=True)
+    else:
+        await target.answer(text, reply_markup=cancel_keyboard(catalogue))
 
 
-def safe_int(value: object, default: int | None = None) -> int | None:
-    """Parse an id coming from callback data; never raises."""
-    try:
-        return int(str(value))
-    except (TypeError, ValueError):
-        return default
+__all__ = ["router", "session", "safe_catalogue", "go_home", "report_api_error"]

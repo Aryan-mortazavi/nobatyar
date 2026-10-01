@@ -1,9 +1,13 @@
 """
-🤖 Bot assembly: objects, start-up sequence, global error handling.
+🤖 Bot assembly: the Telegram client, the dispatcher and the channel bridge.
 
-The FastAPI panel (``main.py``) reuses the very same bot/dispatcher objects so
-that both the web routes and the Telegram handlers share one event loop and one
-database connection pool.
+There is exactly one source of truth — the NobatYar web app. This process owns
+no database and no business rules; it asks ``/api/v1`` what is true and renders
+the answer. Start-up therefore has two jobs and only two:
+
+  1. build the Telegram client and the channel client
+  2. refuse to run if the web app cannot answer, because a bot that books
+     against a dead service would silently eat customers' requests
 """
 
 from __future__ import annotations
@@ -17,11 +21,11 @@ from aiogram.exceptions import TelegramAPIError, TelegramRetryAfter
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import ErrorEvent, TelegramObject
 
-from config import ADMIN_IDS, BOT_TOKEN, setup_logging
-from database.init_db import init_db
-from database.session import session_scope
+from channel.api import ChannelApi
+from channel.runtime import close_api, set_api
+from channel.telegram_session import build_session
+from config import BOT_TOKEN, CHANNEL_API_SECRET, WEB_API_URL, setup_logging
 from handlers import get_routers
-from services import notification_service, user_service
 
 logger = logging.getLogger(__name__)
 errors_router = Router(name="global_errors")
@@ -36,10 +40,18 @@ def create_bot() -> Bot:
         raise RuntimeError(
             "BOT_TOKEN is empty - copy .env.example to .env and set your token."
         )
-    # Persian texts contain characters that break HTML (e.g. '<' in times),
-    # therefore no default parse mode is configured: every message is sent as
-    # plain text and formatting is done with the keyboards themselves.
-    return Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=None))
+    # the session is tuned so a half-configured IPv6 stack on the host cannot
+    # make Telegram look unreachable (see channel/telegram_session.py)
+    return Bot(
+        token=BOT_TOKEN,
+        default=DefaultBotProperties(parse_mode="HTML"),
+        session=build_session(),
+    )
+
+
+def create_api() -> ChannelApi:
+    """Create the channel client that talks to the web app."""
+    return ChannelApi(WEB_API_URL, CHANNEL_API_SECRET)
 
 
 def create_dispatcher() -> Dispatcher:
@@ -69,12 +81,8 @@ async def handle_error(event: ErrorEvent) -> bool:
     """
     Last line of defence: nothing may crash the polling loop.
 
-    Returns True when the exception was recognised and handled, so aiogram
-    stops propagating it.
-
-    This observer must never raise: a bug here would swallow the very error
-    we are trying to report (it happened once - Update.update_type does not
-    exist in aiogram 3, the correct attribute is Update.event_type).
+    This observer must never raise: a bug here would swallow the very error we
+    are trying to report.
     """
     exception = event.exception
     update = event.update
@@ -85,8 +93,6 @@ async def handle_error(event: ErrorEvent) -> bool:
             return True
 
         if isinstance(exception, TelegramAPIError):
-            # Typical cases: expired inline button (query is too old), edited
-            # message that did not change, blocked bot...
             logger.warning(
                 "Telegram API error in %s: %s", _event_type(update), exception
             )
@@ -108,47 +114,37 @@ async def handle_error(event: ErrorEvent) -> bool:
 # ---------------------------------------------------------------------------
 async def startup(bot: Bot) -> None:
     """
-    Everything that must happen before the first update is processed:
+    Connect to the web app, verify it answers, then announce ourselves.
 
-      1. create the tables (idempotent)
-      2. sync ADMIN_IDS (.env) with the User.role column
-      3. hand the bot over to the notification service
-      4. deliver messages recorded while the bot was offline
-      5. start APScheduler (reminders + waitlist maintenance)
+    Failing fast is deliberate: if the booking service is unreachable, the
+    business should see a clear error now, not a bot that accepts messages and
+    then goes quiet.
     """
     setup_logging()
 
-    init_db()
+    api = create_api()
+    set_api(api)
 
-    with session_scope() as session:
-        synced = user_service.apply_admin_roles(session, ADMIN_IDS)
-    if synced:
-        logger.info("Synchronized %s admin role(s) from ADMIN_IDS", synced)
-
-    notification_service.init(bot)
-
-    delivered = await notification_service.flush_pending()
-    if delivered:
-        logger.info("Delivered %s message(s) queued while offline", delivered)
-
-    from scheduler import start as start_scheduler
-
-    start_scheduler()
+    if not await api.health():
+        await api.aclose()
+        raise RuntimeError(
+            f"The booking service at {WEB_API_URL} is not answering.\n"
+            "Start the web app (npm run dev) or fix WEB_API_URL, then start the bot again."
+        )
 
     me = await bot.get_me()
-    logger.info("Bot @%s started", me.username)
+    logger.info("Bot @%s started, connected to %s", me.username, WEB_API_URL)
 
 
 async def shutdown() -> None:
-    """Stop the background jobs cleanly."""
-    from scheduler import stop as stop_scheduler
-
-    stop_scheduler()
+    """Release the channel client cleanly."""
+    await close_api()
     logger.info("Bot shut down complete")
 
 
 __all__ = [
     "create_bot",
+    "create_api",
     "create_dispatcher",
     "startup",
     "shutdown",

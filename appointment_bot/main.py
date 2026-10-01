@@ -1,16 +1,16 @@
 """
-🚀 Application entry point: Telegram bot + FastAPI admin panel in ONE process.
+🚀 Entry point: the Telegram bot, and nothing else.
 
     python main.py
 
-Why one process?
-    * the web panel and the bot share the same SQLite connection pool
-    * actions done in the web panel (cancel / confirm ...) can notify the user
-      through the very same bot instance
-    * for the student demo only one command has to be started
+The bot is a *channel* in front of the NobatYar web app:
 
-    Bot  -> long polling (no webhook configuration needed)
-    Web  -> uvicorn task inside the same asyncio event loop
+    Telegram  ──►  this process  ──HTTP──►  NobatYar /api/v1  ──►  database
+
+There is no local database, no admin panel and no scheduler any more — the web
+application owns the calendar, the management screens and the reminders. This
+process only speaks to Telegram, which means it can be restarted, scaled or
+replaced without touching a single appointment.
 """
 
 from __future__ import annotations
@@ -18,54 +18,26 @@ from __future__ import annotations
 import asyncio
 import logging
 
-import uvicorn
-
-from config import WEB_HOST, WEB_PORT, setup_logging
 from bot import create_bot, create_dispatcher, shutdown, startup
-from database.init_db import init_db
+from config import setup_logging
 
 logger = logging.getLogger(__name__)
 
 
 async def run() -> None:
     setup_logging()
-    init_db()
 
     bot = create_bot()
     dispatcher = create_dispatcher()
 
-    # start-up jobs (tables, admin roles, queued notifications, scheduler)
+    # refuses to start if the booking service is down
     await startup(bot)
 
-    # the FastAPI application created in web.app reuses this bot instance
-    from web.app import create_app, set_context
-
-    set_context(bot=bot, dispatcher=dispatcher)
-    app = create_app()
-
-    config = uvicorn.Config(
-        app,
-        host=WEB_HOST,
-        port=WEB_PORT,
-        log_level="warning",
-        access_log=False,
-    )
-    server = uvicorn.Server(config)
-    web_task = asyncio.create_task(server.serve(), name="uvicorn")
-
-    logger.info("Web admin panel on http://%s:%s", WEB_HOST, WEB_PORT)
-
     try:
-        # blocks until Ctrl+C - updates are handled in this loop
         await dispatcher.start_polling(
             bot, allowed_updates=dispatcher.resolve_used_update_types()
         )
     finally:
-        server.should_exit = True
-        try:
-            await asyncio.wait_for(web_task, timeout=10)
-        except (asyncio.TimeoutError, asyncio.CancelledError):  # pragma: no cover
-            web_task.cancel()
         await shutdown()
         await bot.session.close()
         logger.info("Goodbye.")
@@ -76,6 +48,9 @@ def main() -> None:
         asyncio.run(run())
     except KeyboardInterrupt:  # pragma: no cover
         print("\nStopped by user.")
+    except RuntimeError as error:
+        # configuration / connectivity problems: say it plainly, not as a trace
+        print(f"\n✖️ {error}")
 
 
 if __name__ == "__main__":

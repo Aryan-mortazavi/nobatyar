@@ -76,6 +76,26 @@ LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO").strip().upper() or "INFO"
 WEB_HOST: str = os.getenv("WEB_HOST", "127.0.0.1").strip() or "127.0.0.1"
 WEB_PORT: int = int(os.getenv("WEB_PORT", "8000") or 8000)
 
+# ---------------------------------------------------------------------------
+# Channel bridge (the web app is the single source of truth)
+# ---------------------------------------------------------------------------
+# Base URL of the NobatYar deployment this bot books into.
+WEB_API_URL: str = os.getenv("WEB_API_URL", "http://localhost:3000").strip()
+# Shared secret the bot presents as `Authorization: Bearer …` on every call.
+# It is the same value as CHANNEL_API_SECRET in the web app's .env.
+CHANNEL_API_SECRET: str = os.getenv("CHANNEL_API_SECRET", "").strip()
+# Public website the customers are handed over to ("book on the website").
+PUBLIC_WEB_URL: str = os.getenv("PUBLIC_WEB_URL", WEB_API_URL).strip()
+# Language of the bot's interface.
+LOCALE: str = os.getenv("LOCALE", "fa").strip() or "fa"
+
+if not CHANNEL_API_SECRET:
+    raise RuntimeError(
+        "CHANNEL_API_SECRET is empty.\n"
+        "Copy the value from the web app's .env (CHANNEL_API_SECRET) into this "
+        "project's .env — without it the API refuses every call."
+    )
+
 # A weak secret key must not be accepted by the web admin panel.
 if not SECRET_KEY:
     # Generated once per process: fine for local development, and it forces the

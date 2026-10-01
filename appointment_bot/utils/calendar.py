@@ -1,8 +1,12 @@
 """
 Jalali (Persian) calendar helpers.
 
-The database stores Gregorian dates, the user interface always shows Jalali
-dates such as 1405/07/10 - conversions happen only in this module.
+The web app owns the calendar; these helpers exist for the *presentation* a chat
+channel needs — month grids, weekday names, "today" in Tehran.
+
+The invariant worth keeping in mind: a Telegram user reads Jalali dates, so
+anything the bot draws itself must be converted here, never with a naive
+``datetime``.
 """
 
 from __future__ import annotations
@@ -12,7 +16,13 @@ from zoneinfo import ZoneInfo
 
 import jdatetime
 
-from utils.constants import PERSIAN_DAYS, PERSIAN_DAYS_SHORT, PERSIAN_MONTHS
+# Persian week: Saturday is the first day, Friday the last.
+PERSIAN_DAYS = ["شنبه", "یکشنبه", "دوشنبه", "سه‌شنبه", "چهارشنبه", "پنجشنبه", "جمعه"]
+PERSIAN_DAYS_SHORT = ["ش", "ی", "د", "س", "چ", "پ", "ج"]
+PERSIAN_MONTHS = [
+    "فروردین", "اردیبهشت", "خرداد", "تیر", "مرداد", "شهریور",
+    "مهر", "آبان", "آذر", "دی", "بهمن", "اسفند",
+]
 
 
 def tehran_tz() -> ZoneInfo:

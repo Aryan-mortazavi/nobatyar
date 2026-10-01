@@ -18,9 +18,9 @@ works, and how the Telegram bot fits in.
 3. [How to run it, from zero](#3-how-to-run-it-from-zero)
 4. [The links](#4-the-links)
 5. [The public website, page by page](#5-the-public-website-page-by-page)
-6. [Customer panel A — the website](#6-customer-panel-a--the-website)
-7. [Customer panel B — the Telegram bot](#7-customer-panel-b--the-telegram-bot)
-8. [Staff panel — the dashboard, page by page](#8-staff-panel--the-dashboard-page-by-page)
+6. [Customer panel A: the website](#6-customer-panel-a-the-website)
+7. [Customer panel B: the Telegram bot](#7-customer-panel-b-the-telegram-bot)
+8. [Staff panel: the dashboard, page by page](#8-staff-panel-the-dashboard-page-by-page)
 9. [Roles: who may do what](#9-roles-who-may-do-what)
 10. [How the booking engine works](#10-how-the-booking-engine-works)
 11. [Notifications](#11-notifications)
@@ -291,7 +291,7 @@ how-it-works strip. Fully bilingual and fully responsive, with a dark mode.
 
 ---
 
-## 6. Customer panel A — the website
+## 6. Customer panel A: the website
 
 Two pages, both under **نوبت‌های من / My appointments**, linked from the header
 when you're signed in.
@@ -325,7 +325,7 @@ anywhere else.
 
 ---
 
-## 7. Customer panel B — the Telegram bot
+## 7. Customer panel B: the Telegram bot
 
 Start it with `/start` (or the Start button). The bot is a guided, button-driven
 flow — no typing needed at any step.
@@ -363,7 +363,7 @@ both the website and the bot change it.
 
 ---
 
-## 8. Staff panel — the dashboard, page by page
+## 8. Staff panel: the dashboard, page by page
 
 `/fa/dashboard` — the sidebar has 11 sections.
 

@@ -47,8 +47,9 @@ npm run dev          # http://localhost:3000  →  /fa یا /en
 | **Packages** | Prepaid session bundles (e.g. "2 × facial + 3 × laser"). A signed-in customer spends one session per booking; the quota is per service and decremented inside the booking transaction, so a session can never be used twice. |
 | **Multi-location** | Branches with their own staff and service lists. Picking a branch filters the calendar to the specialists who work there; bookings store the branch. |
 | **Availability engine** | Pure, fully unit-tested: weekly windows, breaks, holidays, time off, per-service buffers, min-notice, booking horizon, half-open overlap rules, union/merge across several specialists. |
-| **Double-booking protection** | Two layers: re-check inside the transaction (friendly error) **and** a DB unique index on `(staffId, startsAt)` (the real guarantee). |
+| **Double-booking protection** | Two layers: re-check inside the transaction (friendly error) **and** a nullable unique `slotKey` on the appointment (the real guarantee). See [below](#why-a-cancelled-appointment-must-release-its-slot). |
 | **Link + QR** | Every business gets a booking URL and a scannable QR code — plus one deep-link QR per service (`/book?service=…`). SVG + PNG download, print-ready poster, copy/share/embed helpers. |
+| **Customer panel** | `/[locale]/my-appointments` — a signed-in customer sees every booking they made on the web, in Telegram, or at the counter, in one list, and can cancel. `/[locale]/my-appointments/<code>` is what every confirmation message links to. A visitor holding only a tracking code sees when and what but never *who*; cancelling requires being signed in as the customer or as staff. |
 | **Dashboard** | KPIs (today, revenue, no-show rate, fill rate), weekly trend, service mix, status donut, per-specialist utilisation, upcoming appointments, day calendar. |
 | **Operations** | Confirm / complete / no-show / cancel with a guarded state machine, reschedule (frees the old slot, reserves the new one), CSV export, waitlist with automatic offers on cancellation. |
 | **Catalogue** | Categories, services (duration, buffers, informational price, colour, public/active), specialists with weekly schedules, time off, public holidays. |
@@ -69,7 +70,7 @@ npm run dev          # http://localhost:3000  →  /fa یا /en
 - **Validation** — Zod (one schema per action)
 - **Auth** — `jose` signed JWT in an httpOnly cookie + `bcryptjs`
 - **QR** — `qrcode` rendered server-side (SVG inline, PNG via `/api/qr`)
-- **Tests** — Vitest (47 unit tests: availability engine, Jalali calendar maths, series planning, package quotas) + Playwright (15 end-to-end tests against a real server and a throw-away database)
+- **Tests** — Vitest (60 unit tests: availability engine, Jalali calendar maths, series planning, package quotas, phone normalisation, slot keys) + Playwright (20 end-to-end tests against the production build and a throw-away database)
 
 ---
 
@@ -79,7 +80,7 @@ npm run dev          # http://localhost:3000  →  /fa یا /en
 npm install
 cp .env.example .env        # set AUTH_SECRET (32+ chars) and DATABASE_URL
 npx prisma db push          # create the schema
-npm run db:seed             # demo business with 75 appointments
+npm run db:seed             # demo business: 6 services, 4 specialists, 2 branches, 2 packages, ~90 appointments
 npm run dev                 # http://localhost:3000
 ```
 
@@ -115,10 +116,13 @@ src/
       staff/[slug]/           # public specialist pages
       pricing/  faq/
       login/  register/
+      my-appointments/        # the customer panel: own list + one appointment (view/cancel)
       dashboard/              # overview · calendar · appointments · link (QR)
+        appointments.csv/     # CSV export
         services/ staff/ waitlist/ packages/ locations/ notifications/ settings/
-      appointments.csv/       # CSV export
     api/
+      v1/                     # channel API: catalogue, identify, availability,
+                              # appointments, cancel, packages, waitlist, support
       health/                 # readiness probe (503 when the DB is down)
       qr/                     # QR renderer (SVG/PNG, http(s) only, rate limited)
       cron/reminders/         # reminder sweep (Bearer CRON_SECRET)
@@ -131,6 +135,10 @@ src/
     availability.ts           # ← pure slot engine (no DB, no React)
     availability-server.ts    # loads schedules from the DB, feeds the engine
     booking.ts                # transactional writes + double-booking guard
+    slot-key.ts               # ← the "a cancellation frees the slot" rule
+    channel-auth.ts           # channel secret + customer token (two credentials)
+    channel-views.ts          # shared JSON shapes + localisation for every channel
+    phone.ts                  # Persian digits, +98 and 0098 normalisation
     recurrence.ts             # recurring series (persisting)
     recurrence-plan.ts        # ← pure series arithmetic (unit tested)
     packages.ts packages-plan.ts   # bundles: queries vs. the rules of a "session"
@@ -150,7 +158,7 @@ public/brand/                 # logo assets (mark, lockup, favicon)
 ## Data model
 
 `Workspace` (tenant) → `Category` → `Service` ⇄ `StaffMember` (M:N) with `WorkingHour`,
-`TimeOff`, `Holiday`; `Appointment` (unique `(staffId, startsAt)`, tracking code, status,
+`TimeOff`, `Holiday`; `Appointment` (unique nullable `slotKey`, tracking code, status,
 buffers, reminder flags, optional `locationId`, `recurrenceGroupId`, `packagePurchaseId`);
 `WaitlistEntry`, `SupportTicket`, `Notification`, `AuditLog`,
 `WorkspaceMember` (OWNER/ADMIN/MANAGER/STAFF), `User`.
@@ -240,6 +248,32 @@ npm run channel:smoke     # 34 checks: the gate, identity, booking, cancel, pack
 
 ---
 
+## Why a cancelled appointment must release its slot
+
+The obvious way to prevent double bookings is a unique index on
+`(staffId, startsAt)`. It works — right up until the first cancellation, at which
+point the row still occupies the index and **that time can never be booked
+again**. The symptom is a calendar that quietly rots: customers are told a slot
+is full, staff say it is empty, and nobody can find out why.
+
+That is exactly what happened here, so reservation is modelled explicitly:
+
+```
+slotKey = "<staffId>:<startsAt as epoch ms>"    // UNIQUE, NULL when cancelled
+```
+
+`createAppointment` writes it, `updateAppointmentStatus` clears it on
+cancellation, and `rescheduleAppointment` frees the old key while reserving the
+new one — all in the same transaction. SQL treats `NULL`s as distinct, so a
+cancelled row stops blocking its slot immediately. `@@index([staffId, startsAt])`
+remains for lookups; it is deliberately *not* unique.
+
+`src/lib/slot-key.ts` holds the rule as two pure functions, and an end-to-end
+test books, cancels, then rebooks the identical instant. `scripts/backfill-slot-keys.ts`
+migrated the rows that already existed.
+
+---
+
 ## The availability engine
 
 `src/lib/availability.ts` is intentionally pure: no database, no locale, no React. It takes
@@ -251,24 +285,29 @@ calendar heat map, the dashboard utilisation numbers and the final server-side c
 booking is written.
 
 ```
-npm test          # 47 unit tests
-  ✓ 18 availability rules (buffers, breaks, notice, horizon, union, utilisation)
-  ✓ 16 calendar rules (Jalali round-trips over 400 years, Tehran offset, 24h times, RTL labels)
-  ✓  7 series rules (weekly arithmetic across month and year boundaries, containment)
-  ✓  6 package rules (per-service quotas, expiry, never negative)
+npm test          # 60 unit tests
+  ✓ availability rules (buffers, breaks, notice, horizon, union, utilisation)
+  ✓ calendar rules (Jalali round-trips over 400 years, Tehran offset, 24h times, RTL labels)
+  ✓ series rules (weekly arithmetic across month and year boundaries, containment)
+  ✓ package rules (per-service quotas, expiry, never negative)
+  ✓ phone normalisation (Persian digits, +98, 0098)
+  ✓ slot-key rules (holdsSlot, slotKeyOf)
 
-npm run test:e2e  # 15 end-to-end tests
+npm run test:e2e  # 20 end-to-end tests
   ✓ public pages, locale switch, QR endpoint, health, protected dashboard
   ✓ guest booking, weekly series, refused series naming the exact week
   ✓ spending a package session, confirming an appointment, packages & branches pages
+  ✓ customer self-service: the confirmation link opens the appointment, a stranger
+    sees the time but not the customer, an unknown code is a 404
+  ✓ cancelling a booking frees the slot for the next customer
 ```
 
 The end-to-end suite is deliberately honest: it starts the **production build** on port 3210
 against a throw-away SQLite file that it deletes, migrates and re-seeds on every run, so it can
-never touch development data — and it found three real bugs that unit tests could not see
-(a form whose hidden inputs sat outside the `<form>`, a working-hours seed that stored hours as
-minutes, and a "must fit inside the day" check written as an intersection instead of a
-containment test, which rejected *every* booking).
+never touch development data — and it has caught real bugs that unit tests could not see: a form
+whose hidden inputs sat outside the `<form>`, a working-hours seed that stored hours as minutes,
+a "must fit inside the day" check written as an intersection instead of a containment test
+(which rejected *every* booking), and the slot that could never be rebooked after a cancellation.
 
 ---
 
@@ -280,7 +319,7 @@ containment test, which rejected *every* booking).
 3. Picking a day calls `fetchDayAction` → the exact slots, with taken ones disabled.
 4. Confirming posts to `bookAppointmentAction` (Zod-validated) → `createAppointment`:
    policy check → availability re-check → transaction with an overlap re-check →
-   `@@unique([staffId, startsAt])` as the final guarantee → confirmation notification.
+   the unique `slotKey` as the final guarantee → confirmation notification.
    With "repeat weekly" the same path creates the whole series in one transaction, and a
    package session is spent per occurrence.
 5. A second customer clicking the same slot gets «این بازه هم‌اکنون رزرو شد»; for a series they
@@ -333,8 +372,15 @@ docker compose run --rm app npm run db:seed
 `DATABASE_URL` (Postgres), `AUTH_SECRET`, `NEXT_PUBLIC_APP_URL`, and add a daily cron hitting
 `/api/cron/reminders` with `Authorization: Bearer $CRON_SECRET`.
 
-CI (`.github/workflows/ci.yml`) runs typecheck → unit tests → build, then the Playwright suite,
-then publishes the Docker image on every push.
+CI runs typecheck → unit tests → build, then the Playwright suite, then publishes the Docker
+image on every push.
+
+> ⚠️ **The workflow does not currently run.** It lives at
+> `nobatyar/.github/workflows/ci.yml`, and GitHub Actions only reads
+> `.github/workflows/` from the *repository* root — a workflow in a subdirectory
+> is silently ignored. Move it to `.github/workflows/ci.yml` at the root and add
+> `defaults: { run: { working-directory: nobatyar } }` to both jobs, and set the
+> Docker build `context: ./nobatyar`. Until then, no commit has been checked.
 
 ---
 
@@ -342,9 +388,9 @@ then publishes the Docker image on every push.
 
 The seed creates a realistic business, *مرکز درمان و زیبایی آریا* (Aria Health & Beauty):
 3 categories, 6 services, 4 specialists with Sat–Thu schedules and lunch breaks, time off, a
-public holiday, 2 branches, 2 packages with 3 purchases, 8 customers and 75 appointments across
-the last three weeks and the next two — so the dashboard, charts, calendar, packages and
-branches all have real data on first run.
+public holiday, 2 branches, 2 packages with 3 purchases, 8 customers and roughly ninety
+appointments across the last three weeks and the next two — so the dashboard, charts, calendar,
+packages and branches all have real data on first run. The seed prints the exact counts.
 
 | Account | Email | Password |
 |---------|-------|----------|
@@ -365,6 +411,7 @@ Sign in as the customer to see the "use one of my sessions" option in the bookin
 - [ ] Rooms and resources per branch (a room can be booked like a specialist)
 - [ ] Online intake forms per service
 - [x] Channel API for the Telegram bot (one owner of the calendar, identity adoption)
+- [x] Customer self-service on the web, linked from every confirmation message
 - [ ] Public API docs + webhooks (the `/api/v1` contract already exists)
 - [ ] Load tests for the booking action
 - [ ] SMS as a fourth transport (Iranian gateways: Kavenegar / SMS.ir)

@@ -217,6 +217,7 @@ calendar will eventually disagree, and that disagreement is a double booking.
 | `GET` | `/api/v1/appointments` | the customer's own list (`scope=upcoming\|history\|all`) |
 | `POST` | `/api/v1/appointments/{code}/cancel` | cancel, then offer the freed slot to the waitlist |
 | `GET` | `/api/v1/packages` | remaining prepaid sessions, per service |
+| `GET` | `/api/v1/waitlist` | the caller's waitlist entries |
 | `POST` | `/api/v1/waitlist` | "tell me when something frees up" |
 | `POST` | `/api/v1/support` | a message into the same ticket queue the website uses |
 

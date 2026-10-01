@@ -128,7 +128,7 @@ python main.py
 | **Dashboard** | 11 sections: overview KPIs and charts, calendar, appointments, services, staff, waitlist, link/QR, packages, branches, notifications, settings. |
 | **Notifications** | Telegram, WhatsApp and email behind one contract, switched on purely by environment variables. Every delivery is logged and viewable. |
 | **i18n** | Full Persian (RTL) and English (LTR) catalogues, Jalali ⇄ Gregorian conversion, `/fa` and `/en` routing, `hreflang` alternates. |
-| **Channel API** | `/api/v1` — 9 routes, two credentials, fails closed. Today the Telegram bot uses it; tomorrow a call centre could. |
+| **Channel API** | `/api/v1` — 10 endpoints, two credentials, fails closed. Today the Telegram bot uses it; tomorrow a call centre could. |
 
 ### The detail worth knowing: cancelled appointments free their slot
 

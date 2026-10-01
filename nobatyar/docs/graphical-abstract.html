@@ -185,10 +185,76 @@
         text-align: right;
       }
 
+      /* ── channels: one calendar, two front-ends ─────────── */
+      .channels {
+        display: grid;
+        grid-template-columns: 1fr 74px 1.55fr 74px 1fr;
+        align-items: stretch;
+        gap: 0;
+      }
+      .chan {
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.015));
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 13px 16px 14px;
+      }
+      .chan .n {
+        font-family: "Inter", sans-serif;
+        font-size: 10px;
+        letter-spacing: 0.16em;
+        color: var(--muted);
+        direction: ltr;
+        display: block;
+      }
+      .chan h3 { font-size: 17px; font-weight: 700; margin: 2px 0 5px; }
+      .chan p { font-size: 12px; line-height: 1.7; color: var(--muted); }
+      .chan code {
+        font-family: "Inter", monospace;
+        font-size: 10.5px;
+        color: #c7d3ee;
+        background: rgba(255, 255, 255, 0.07);
+        border-radius: 5px;
+        padding: 1px 4px;
+        direction: ltr;
+        display: inline-block;
+      }
+      /* the single owner of the calendar gets the emphasis */
+      .chan.core {
+        background: linear-gradient(180deg, rgba(22, 48, 90, 0.9), rgba(11, 27, 52, 0.9));
+        border-color: rgba(245, 183, 0, 0.45);
+        box-shadow: 0 0 0 1px rgba(245, 183, 0, 0.12), 0 18px 44px -26px rgba(245, 183, 0, 0.5);
+      }
+      .chan.core .n { color: var(--gold); }
+      .chan-arrow {
+        display: grid;
+        place-items: center;
+        position: relative;
+      }
+      .chan-arrow::before {
+        content: "";
+        position: absolute;
+        inset-inline: 6px;
+        top: 50%;
+        height: 2px;
+        background: linear-gradient(90deg, rgba(245, 183, 0, 0.12), rgba(245, 183, 0, 0.7));
+      }
+      .chan-arrow span {
+        position: relative;
+        font-family: "Inter", sans-serif;
+        font-size: 9.5px;
+        letter-spacing: 0.12em;
+        color: var(--gold);
+        background: #0a1730;
+        padding: 2px 6px;
+        border-radius: 999px;
+        border: 1px solid rgba(245, 183, 0, 0.35);
+        direction: ltr;
+      }
+
       /* ── features ───────────────────────────────────────────── */
       .features {
         display: grid;
-        grid-template-columns: repeat(4, 1fr);
+        grid-template-columns: repeat(5, 1fr);
         gap: 12px;
         margin-top: 10px;
       }
@@ -269,7 +335,7 @@
         <div class="kicker">
           <b>Graphical Abstract</b><br />
           multi-tenant booking platform · fa/en · RTL<br />
-          Jalali calendar · QR + link · 15 data models
+          Jalali calendar · QR + link · web &amp; Telegram · 21 models
         </div>
       </header>
 
@@ -277,8 +343,8 @@
         <div class="metric gold"><b>2</b><span>زبان کامل با RTL / LTR</span></div>
         <div class="metric sky"><b>60</b><span>روز افق رزرو (تقویم شمسی)</span></div>
         <div class="metric violet"><b>12</b><span>نوبت تکرارشونده در یک تراکنش</span></div>
-        <div class="metric green"><b>47+15</b><span>تست واحد + end-to-end</span></div>
-        <div class="metric"><b>2</b><span>لایهٔ تضمین نبودِ رزروِ تکراری</span></div>
+        <div class="metric green"><b>60+20</b><span>تست واحد + end-to-end</span></div>
+        <div class="metric"><b>10</b><span>مسیر Channel API برای کانال‌های بیرونی</span></div>
       </section>
 
       <div class="section-title">مسیر یک رزرو — از اسکن کد تا پیام تأیید</div>
@@ -303,12 +369,38 @@
         <div class="step">
           <span class="n">04</span>
           <h3>ثبت اتمی</h3>
-          <p>بررسی دوباره داخل تراکنش + ایندکس یکتای <code>(staffId, startsAt)</code>؛ سری هفتگی و مصرف بسته همین‌جا.</p>
+          <p>بررسی دوباره داخل تراکنش + کلید یکتای <code>slotKey</code> که با لغو <b>آزاد</b> می‌شود؛ سری هفتگی و مصرف بسته همین‌جا.</p>
         </div>
         <div class="step">
           <span class="n">05</span>
           <h3>اعلان‌ها</h3>
           <p>ایمیل، تلگرام و واتساپ روی یک قرارداد مشترک؛ یادآور ۲۴ و ۱ ساعت، یادآوری لیست انتظار.</p>
+        </div>
+      </section>
+
+      <div class="section-title">یک تقویم، دو کانال — مشتری هر جا رزرو کند، نوبت او یکی است</div>
+
+      <section class="channels">
+        <div class="chan">
+          <span class="n">CANAL</span>
+          <h3>وب‌سایت</h3>
+          <p>ویزارد رزرو، پنل «نوبت‌های من»، لغو نوبت و QR هر خدمت.</p>
+        </div>
+        <div class="chan-arrow"><span>HTTP</span></div>
+        <div class="chan core">
+          <span class="n">ONE OWNER</span>
+          <h3>Web App &nbsp;/api/v1</h3>
+          <p>
+            تنها صاحب تقویم. دو احراز هویت مستقل: کلید کانال
+            <code>Bearer</code> و توکن مشتری ۹۰ روزه با تطبیق <code>X-Telegram-Id</code>.
+            بدون کلید، API با <code>503</code> بسته می‌شود.
+          </p>
+        </div>
+        <div class="chan-arrow"><span>HTTP</span></div>
+        <div class="chan">
+          <span class="n">CANAL</span>
+          <h3>ربات تلگرام</h3>
+          <p>همان رزرو با دکمه‌های گفت‌وگو؛ بدون پایگاه‌دادهٔ خودش و بدون پنل مدیریت.</p>
         </div>
       </section>
 
@@ -355,6 +447,16 @@
           <p>Asia/Tehran، هفتهٔ شروع شنبه، ساعت ۲۴ ساعته و تبدیل دوسویهٔ تاریخ.</p>
           <span class="en">jalali ⇄ gregorian</span>
         </div>
+        <div class="feature">
+          <div class="row"><span class="dot" style="background:#f5b700"></span><h4>پنل مشتری</h4></div>
+          <p>هر رزروی، از هر کانالی، در یک فهرست؛ لغو نوبت از وب و تلگرام.</p>
+          <span class="en">customer self-service</span>
+        </div>
+        <div class="feature">
+          <div class="row"><span class="dot" style="background:#38bdf8"></span><h4>شناسهٔ یکتای رزرو</h4></div>
+          <p>کلید <code style="font-family:Inter,monospace;font-size:10.5px">slotKey</code> که با لغو پاک می‌شود تا بازه دوباره قابل رزرو باشد.</p>
+          <span class="en">cancelling frees the slot</span>
+        </div>
       </section>
 
       <footer>
@@ -363,8 +465,8 @@
         <span class="chip">Prisma</span>
         <span class="chip">Tailwind v4</span>
         <span class="chip">SQLite → PostgreSQL</span>
+        <span class="chip">aiogram 3</span>
         <span class="chip">Playwright</span>
-        <span class="chip">Docker · CI</span>
         <span class="foot-note">
           <b style="color:#e8eefc">نوبت‌یار</b> — محصول آمادهٔ ثبت و درآمدزایی
         </span>

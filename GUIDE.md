@@ -255,7 +255,7 @@ left-to-right, and the switch in the header keeps your place.
 |---|---|
 | `/api/health` | Liveness, plus row counts — good for uptime checks |
 | `/api/qr` | Renders a QR code as SVG for any booking URL — for embedding in your own site |
-| `/api/v1/*` | The channel API (9 routes) — see [section 12](#12-the-channel-api-for-developers) |
+| `/api/v1/*` | The channel API (10 endpoints) — see [section 12](#12-the-channel-api-for-developers) |
 | `/api/cron/reminders` | The reminder sweep — see [section 11](#11-notifications) |
 
 ### Demo accounts (after `db:seed`)
@@ -512,7 +512,7 @@ so when a customer says "I never got the message" you can actually find out.
 
 ## 12. The Channel API (for developers)
 
-Nine routes under `/api/v1`, all JSON, all bilingual via `?locale=fa|en`.
+Ten endpoints under `/api/v1`, all JSON, all bilingual via `?locale=fa|en`.
 
 | Route | What it does |
 |---|---|
@@ -523,7 +523,8 @@ Nine routes under `/api/v1`, all JSON, all bilingual via `?locale=fa|en`.
 | `POST /appointments` | Book (supports recurring series and packages) |
 | `POST /appointments/<code>/cancel` | Cancel — releases the slot |
 | `GET /packages` | Packages and the caller's remaining sessions |
-| `GET`/`POST /waitlist` | Read and join the waitlist |
+| `GET /waitlist` | The caller's waitlist entries |
+| `POST /waitlist` | Join the waitlist for a time that is taken |
 | `POST /support` | Raise a support ticket from a channel |
 
 ### Authentication — two credentials, because they answer two different questions

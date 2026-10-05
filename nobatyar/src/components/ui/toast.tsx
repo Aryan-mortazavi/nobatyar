@@ -31,6 +31,21 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = React.useState<Toast[]>([]);
   const counter = React.useRef(0);
 
+  /**
+   * Gate the portal on "mounted", not on `typeof document`.
+   *
+   * `typeof document !== "undefined"` is one of React's documented causes of a
+   * hydration mismatch: the server renders `null` and the client renders a
+   * portal, so React throws the whole tree away and regenerates it. On the
+   * login and register pages that regeneration detached the form's server
+   * action, so submitting did nothing at all.
+   *
+   * `mounted` is false on the server and on the first client render, so both
+   * agree; the portal then appears in an effect.
+   */
+  const [mounted, setMounted] = React.useState(false);
+  React.useEffect(() => setMounted(true), []);
+
   const remove = React.useCallback((id: number) => {
     setToasts((current) => current.filter((toast) => toast.id !== id));
   }, []);
@@ -50,7 +65,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   return (
     <ToastContext.Provider value={value}>
       {children}
-      {typeof document !== "undefined"
+      {mounted
         ? createPortal(
             <div className="pointer-events-none fixed inset-x-0 bottom-4 z-100 flex flex-col items-center gap-2 px-4 sm:items-end sm:px-6">
               {toasts.map((toast) => {

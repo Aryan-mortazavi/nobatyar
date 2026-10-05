@@ -13,6 +13,21 @@ import { civilOf } from "./dates";
 import { verifySlot } from "./availability-server";
 import { holdsSlot, slotKeyOf } from "./slot-key";
 
+/**
+ * Interactive-transaction budget for the booking writes.
+ *
+ * Prisma defaults to 5 s. Under contention — several customers racing for the
+ * same popular slot — the booking transaction was observed exceeding that and
+ * aborting with P2028 ("Transaction already closed") / P1008 ("Socket
+ * timeout"), which surfaced to the caller as an unexplained 500 instead of a
+ * booking or a clean "slot taken".
+ *
+ * The work inside is small (one re-check plus one insert), so a longer budget
+ * costs nothing in the normal case and only buys headroom when the database is
+ * busy or the disk is slow.
+ */
+export const BOOKING_TX = { maxWait: 10_000, timeout: 20_000 } as const;
+
 export { holdsSlot, slotKeyOf } from "./slot-key";
 
 export const ACTIVE_STATUSES = ["PENDING", "CONFIRMED"] as const;
@@ -141,7 +156,7 @@ export async function createAppointment(input: BookingInput): Promise<BookingRes
         },
         select: { id: true, trackingCode: true, status: true },
       });
-    });
+    }, BOOKING_TX);
 
     await audit({
       action: "APPOINTMENT_CREATE",
@@ -278,7 +293,7 @@ export async function rescheduleAppointment(params: {
         },
         select: { id: true },
       });
-    });
+    }, BOOKING_TX);
 
     await audit({
       action: "APPOINTMENT_RESCHEDULE",

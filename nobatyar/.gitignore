@@ -42,3 +42,6 @@ tsconfig.tsbuildinfo
 npm-debug.log*
 yarn-error.log*
 .vercel
+
+# throwaway QA scripts (temporary audit harness)
+_qa/

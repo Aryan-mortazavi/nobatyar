@@ -6,6 +6,7 @@ import { ok, resolveLocale } from "@/lib/channel-views";
 import { civilOf, parseDateKey, toJalali } from "@/lib/dates";
 import { availabilityMap, daySlots } from "@/lib/availability-server";
 import { getDictionary } from "@/lib/dictionaries";
+import { prisma } from "@/lib/db";
 import { getWorkspace } from "@/lib/queries";
 import { rateLimit } from "@/lib/rate-limit";
 
@@ -53,6 +54,18 @@ export async function GET(request: NextRequest) {
   const locale = resolveLocale(parsed.data.locale, workspace.defaultLocale);
   const staffIdOrUndefined = staffId && staffId !== "any" ? staffId : undefined;
   const locationIdOrUndefined = locationId && locationId !== "any" ? locationId : undefined;
+
+  // Resolve the service up front. The availability engine below loads it with
+  // findUniqueOrThrow, so an unknown id used to escape as an unhandled Prisma
+  // P2025 and a 500 — an authenticated caller could turn a typo into a server
+  // error (and, in development, a stack trace in the response).
+  const service = await prisma.service.findFirst({
+    where: { id: serviceId, workspaceId: workspace.id },
+    select: { id: true, isActive: true },
+  });
+  if (!service) {
+    return channelError(404, "NOT_FOUND", "No such service in this workspace");
+  }
 
   // ── one concrete day: the exact slots ────────────────────────────────────
   if (date) {

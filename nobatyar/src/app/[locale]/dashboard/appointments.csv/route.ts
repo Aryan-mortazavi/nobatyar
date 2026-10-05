@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 import { requireSession } from "@/lib/auth";
+import { csvCell, csvRow } from "@/lib/csv";
 import { prisma } from "@/lib/db";
 import { getDictionary, pick } from "@/lib/dictionaries";
 import { getWorkspace } from "@/lib/queries";
@@ -45,26 +46,21 @@ export async function GET(
     t.common.duration,
   ];
 
-  const escape = (value: string | number | null | undefined) => {
-    const text = String(value ?? "");
-    return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
-  };
-
   const lines = [
-    header.join(","),
+    header.map(csvCell).join(","),
     ...rows.map((row) =>
-      [
-        escape(row.trackingCode),
-        escape(row.customerName),
-        escape(row.customerPhone),
-        escape(pick(typed, row.service.name, row.service.nameFa)),
-        escape(row.staff.name),
-        escape(formatDate(row.startsAt, typed, workspace.timezone)),
-        escape(formatTime(row.startsAt, typed, workspace.timezone)),
-        escape(t.status[row.status as keyof typeof t.status] ?? row.status),
-        escape(row.priceAmount ?? 0),
-        escape(row.service.durationMin),
-      ].join(","),
+      csvRow([
+        row.trackingCode,
+        row.customerName,
+        row.customerPhone,
+        pick(typed, row.service.name, row.service.nameFa),
+        row.staff.name,
+        formatDate(row.startsAt, typed, workspace.timezone),
+        formatTime(row.startsAt, typed, workspace.timezone),
+        t.status[row.status as keyof typeof t.status] ?? row.status,
+        row.priceAmount ?? 0,
+        row.service.durationMin,
+      ]),
     ),
   ];
 

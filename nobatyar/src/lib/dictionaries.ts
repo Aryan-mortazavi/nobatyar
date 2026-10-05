@@ -381,6 +381,8 @@ export const fa = {
     settings: {
       title: "تنظیمات کسب‌وکار",
       subtitle: "اطلاعات عمومی، سیاست رزرو و ظاهر",
+      readOnlyNotice:
+        "شما می‌توانید این تنظیمات را ببینید، اما تغییر آن تنها برای مالک یا مدیر ممکن است.",
       profile: "اطلاعات کسب‌وکار",
       workspaceName: "نام کسب‌وکار",
       workspaceNameFa: "نام فارسی",
@@ -886,6 +888,8 @@ export const en: Dictionary = {
     settings: {
       title: "Business settings",
       subtitle: "Public profile, booking policy and appearance",
+      readOnlyNotice:
+        "You can read these settings, but only the owner or an admin can change them.",
       profile: "Business profile",
       workspaceName: "Business name",
       workspaceNameFa: "Name (Persian)",

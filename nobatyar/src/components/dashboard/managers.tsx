@@ -827,10 +827,13 @@ export function SettingsForm({
   settings,
   locale,
   t,
+  readOnly = false,
 }: {
   settings: SettingsRow;
   locale: Locale;
   t: Dictionary;
+  /** Managers and staff may read the settings but not save them. */
+  readOnly?: boolean;
 }) {
   const { formAction, pending, error, field } = useSubmit(saveSettingsAction, t, t.dashboard.settings.saved);
   const [tab, setTab] = React.useState("profile");
@@ -996,7 +999,7 @@ export function SettingsForm({
       {error ? <FormError message={error} /> : null}
 
       <div className="flex justify-end">
-        <Button type="submit" loading={pending}>
+        <Button type="submit" loading={pending} disabled={readOnly}>
           {t.common.save}
         </Button>
       </div>

@@ -17,6 +17,14 @@ import { createAppointment, type BookingInput } from "./booking";
 import { slotKeyOf } from "./slot-key";
 import { civilOf } from "./dates";
 import { minuteOfDay, planSeries } from "./recurrence-plan";
+
+/**
+ * A weekly series writes up to 12 appointments in one transaction, so it needs
+ * a bigger budget than a single booking — and, more to the point, it must not
+ * abort halfway and leave a partial series behind (see BOOKING_TX in booking.ts
+ * for why Prisma's 5 s default is too tight here).
+ */
+export const SERIES_TX = { maxWait: 15_000, timeout: 30_000 } as const;
 import { verifySlot } from "./availability-server";
 import { getWorkspace } from "./queries";
 
@@ -150,7 +158,7 @@ export async function createRecurringSeries(
         });
         created.push(row);
       }
-    });
+    }, SERIES_TX);
   } catch (error) {
     if (error instanceof Error && error.message.includes("SLOT_TAKEN")) {
       return { ok: false, error: "SLOT_TAKEN" };

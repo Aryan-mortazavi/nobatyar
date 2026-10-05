@@ -246,6 +246,61 @@ test.describe("booking flow", () => {
   });
 });
 
+test.describe("registration must not grant staff access", () => {
+  // Regression guard for a critical privilege escalation.
+  //
+  // registerAction used to create a { role: "STAFF" } workspace membership for
+  // every new account, so any anonymous visitor who signed up landed on the
+  // staff dashboard and could read every customer's phone number and the
+  // revenue figures. A hydration bug in the toast provider had been hiding it,
+  // because registration simply never completed.
+  test("a self-registered account is refused by every staff screen", async ({ page }) => {
+    await page.goto("/fa/register");
+    await page.locator('input[name="name"]').fill("QA Newcomer");
+    await page.locator('input[name="email"]').fill(`qa-e2e-${Date.now()}@example.test`);
+    const phone = page.locator('input[name="phone"]');
+    if (await phone.count()) await phone.fill("09120000000");
+    await page.locator('input[name="password"]').fill("QaProbe#2026x");
+    const confirm = page.locator('input[name="confirmPassword"]');
+    if (await confirm.count()) await confirm.fill("QaProbe#2026x");
+    await page.locator('form button[type="submit"]').first().click();
+
+    // registration must succeed and land the newcomer outside the dashboard
+    await page.waitForURL("**/my-appointments", { timeout: 30_000 });
+    expect(new URL(page.url()).pathname).not.toContain("/dashboard");
+
+    // …and they really are signed in, so the refusals below are about the role
+    await page.goto("/fa/my-appointments");
+    await expect(page.locator("main")).toBeVisible();
+    expect(new URL(page.url()).pathname).toBe("/fa/my-appointments");
+
+    // every staff section must bounce them away
+    for (const section of [
+      "",
+      "appointments",
+      "calendar",
+      "services",
+      "staff",
+      "waitlist",
+      "packages",
+      "locations",
+      "notifications",
+      "settings",
+      "link",
+    ]) {
+      await page.goto(`/fa/dashboard${section ? `/${section}` : ""}`);
+      expect(
+        new URL(page.url()).pathname,
+        `a self-registered customer reached /dashboard/${section}`,
+      ).not.toContain("/dashboard");
+    }
+
+    // no customer PII anywhere on the way out
+    const body = await page.locator("main").innerText();
+    expect(body).not.toMatch(/09\d{9}/);
+  });
+});
+
 test.describe("customer self-service", () => {
   test("the link from a confirmation message opens the appointment", async ({ page }) => {
     // Every confirmation (Telegram, WhatsApp, email) links here, so this page

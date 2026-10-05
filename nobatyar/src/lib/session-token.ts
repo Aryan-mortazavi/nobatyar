@@ -15,9 +15,25 @@ export type SessionPayload = {
   name: string;
   role: string; // platform role
   wid: string; // active workspace id
-  wrole: string; // OWNER | ADMIN | MANAGER | STAFF
+  wrole: string; // OWNER | ADMIN | MANAGER | STAFF, or CUSTOMER for no membership
   locale: string;
 };
+
+/**
+ * The role a session gets when it carries no workspace membership.
+ *
+ * It must not be one of the staff roles: `verifySessionToken` cannot tell a
+ * customer apart from a staff member once the claim is missing, so any token
+ * without a `wrole` claim would otherwise be treated as staff.
+ */
+export const NO_MEMBERSHIP_ROLE = "CUSTOMER";
+
+/** The only workspace roles that may reach staff screens and staff actions. */
+export const STAFF_ROLES = ["OWNER", "ADMIN", "MANAGER", "STAFF"] as const;
+
+export function isStaffRole(role: string): boolean {
+  return (STAFF_ROLES as readonly string[]).includes(role);
+}
 
 function secretKey(): Uint8Array {
   const value = process.env.AUTH_SECRET;
@@ -47,9 +63,10 @@ export async function verifySessionToken(token: string): Promise<SessionPayload 
       sub: String(payload.sub),
       email: String(payload.email ?? ""),
       name: String(payload.name ?? ""),
-      role: String(payload.role ?? "CUSTOMER"),
+      role: String(payload.role ?? NO_MEMBERSHIP_ROLE),
       wid: String(payload.wid ?? ""),
-      wrole: String(payload.wrole ?? "STAFF"),
+      // fail closed: an absent claim means "no membership", never "staff"
+      wrole: String(payload.wrole ?? NO_MEMBERSHIP_ROLE),
       locale: String(payload.locale ?? "fa"),
     };
   } catch {

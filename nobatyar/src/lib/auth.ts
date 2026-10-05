@@ -7,8 +7,11 @@ import bcrypt from "bcryptjs";
 import { prisma } from "./db";
 import { env } from "./env";
 import {
+  NO_MEMBERSHIP_ROLE,
   SESSION_COOKIE,
   SESSION_MAX_AGE,
+  STAFF_ROLES,
+  isStaffRole,
   signSessionToken,
   verifySessionToken,
   type SessionPayload,
@@ -48,7 +51,9 @@ export async function startSession(user: {
     name: user.name,
     role: user.platformRole,
     wid: membership?.workspaceId ?? "",
-    wrole: membership?.role ?? "STAFF",
+    // No membership means "a customer", never "staff". Defaulting this to
+    // STAFF handed the whole dashboard to every self-registered account.
+    wrole: membership?.role ?? NO_MEMBERSHIP_ROLE,
     locale: user.locale,
   });
   const store = await cookies();
@@ -66,12 +71,10 @@ export async function endSession(): Promise<void> {
   store.delete(SESSION_COOKIE);
 }
 
-const STAFF_ROLES = ["OWNER", "ADMIN", "MANAGER", "STAFF"];
-
-/** Server-component guard: no session → redirect to the login page. */
+/** Server-component guard: no session, or not staff → away from staff screens. */
 export async function requireSession(
   locale: string,
-  roles: string[] = STAFF_ROLES,
+  roles: string[] = [...STAFF_ROLES],
 ): Promise<Session> {
   const session = await getSession();
   if (!session) {

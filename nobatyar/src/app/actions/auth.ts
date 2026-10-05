@@ -20,6 +20,16 @@ export type FormState =
   | { ok: true }
   | { ok: false; error: string; fields?: Record<string, string> };
 
+/**
+ * A real bcrypt hash (cost 12) of a value nobody can supply.
+ *
+ * Used only so that a sign-in attempt for an unknown address costs the same
+ * as one for a known address. It is not a credential: the plaintext is a long
+ * random string that exists nowhere in this repository.
+ */
+const TIMING_EQUALISER_HASH =
+  "$2a$12$TfDemEOeVS92omaKpuluNOuxhipUepjHO7vrTlfqwFjdAMZYGOmHO";
+
 async function requestIp(): Promise<string> {
   const store = await headers();
   return (
@@ -58,8 +68,16 @@ export async function loginAction(
     include: { memberships: { orderBy: { createdAt: "asc" } } },
   });
 
-  // constant-ish response: never reveal whether the email exists
-  const passwordOk = user ? await verifyPassword(parsed.data.password, user.passwordHash) : false;
+  // Constant-ish response: never reveal whether the email exists.
+  //
+  // Skipping bcrypt when the user is absent made the two paths differ by the
+  // cost of one hash (measured 838ms vs 1232ms), which is enough to enumerate
+  // registered addresses by averaging. Always run one comparison — against a
+  // throwaway hash when there is no account — so the timing does not leak.
+  const passwordOk = await verifyPassword(
+    parsed.data.password,
+    user?.passwordHash ?? TIMING_EQUALISER_HASH,
+  );
   if (!user || !passwordOk || !user.isActive) {
     await audit({
       action: "AUTH_LOGIN_FAILED",
@@ -121,13 +139,12 @@ export async function registerAction(
   const existing = await prisma.user.findUnique({ where: { email }, select: { id: true } });
   if (existing) return { ok: false, error: "EMAIL_TAKEN", fields: { email: "EMAIL_TAKEN" } };
 
-  // a brand-new account joins the demo workspace as a customer-facing user
-  const workspace = await prisma.workspace.findFirst({
-    where: { isActive: true },
-    orderBy: { createdAt: "asc" },
-    select: { id: true },
-  });
-
+  // A self-registered account is a CUSTOMER of the workspace, not a member of
+  // its staff. It deliberately gets NO WorkspaceMember row, so the session
+  // carries no workspace role and every staff screen and staff server action
+  // refuses it. Previously this created a { role: "STAFF" } membership, which
+  // gave any anonymous visitor the full dashboard: every customer's phone
+  // number, the revenue figures and the settings form.
   const user = await prisma.user.create({
     data: {
       email,
@@ -139,16 +156,13 @@ export async function registerAction(
     },
   });
 
-  await startSession(
-    {
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      platformRole: user.platformRole,
-      locale: user.locale,
-    },
-    workspace ? { workspaceId: workspace.id, role: "STAFF" } : null,
-  );
+  await startSession({
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    platformRole: user.platformRole,
+    locale: user.locale,
+  });
 
   await audit({
     action: "AUTH_REGISTER",
@@ -157,7 +171,8 @@ export async function registerAction(
     meta: { ip },
   });
 
-  redirect(`/${locale}/dashboard`);
+  // a customer has no business here; send them to their own appointments
+  redirect(`/${locale}/my-appointments`);
 }
 
 export async function logoutAction(): Promise<void> {

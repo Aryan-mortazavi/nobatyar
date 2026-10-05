@@ -187,8 +187,12 @@ python main.py          # run the bot
 
 ## Status
 
-Green: `npm run test:all` exits 0 — 60 unit tests, a clean production build, and
-20 end-to-end browser tests. The channel API smoke suite passes 34/34.
+Green: `npm run test:all` exits 0 — 71 unit tests, a clean production build, and
+21 end-to-end browser tests. The channel API smoke suite passes 34/34.
+
+A full security and test audit was carried out against this build; the findings,
+the fixes and the items that still need a manual decision are recorded in
+**[SECURITY_AND_TEST_REPORT.md](SECURITY_AND_TEST_REPORT.md)**.
 
 Known and unbuilt: rooms and equipment per branch, per-service intake forms, SMS
 transports, a hosted API reference and webhooks, online payments, and load

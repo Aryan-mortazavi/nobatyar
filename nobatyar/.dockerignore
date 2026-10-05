@@ -1,0 +1,50 @@
+# Keep the build context small and, more importantly, keep secrets out of it.
+#
+# Without this, `docker build` sends node_modules/, .next/ and — critically —
+# .env to the Docker daemon on every build. The Dockerfile only COPYs the files
+# it names, so they would not land in the image, but they still travel across
+# that boundary and can end up in a build cache on a shared runner.
+
+# dependencies and build output
+node_modules
+.next
+out
+build
+dist
+
+# secrets — never send these to the daemon
+.env
+.env.*
+!.env.example
+
+# local databases (they are runtime state, not build inputs)
+prisma/*.db
+prisma/*.db-journal
+prisma/e2e.db
+data
+
+# tests and their artefacts
+test-results
+playwright-report
+blob-report
+playwright/.cache
+coverage
+
+# QA harness and tooling
+_qa
+.github
+
+# version control and editors
+.git
+.gitignore
+.idea
+.vscode
+*.pem
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
+
+# docs and assets that are not needed to build the image
+docs
+README.md

@@ -1,3 +1,11 @@
+# CI for NobatYar
+#
+# This file MUST live at <repo-root>/.github/workflows/. GitHub only reads
+# workflows from the root .github directory; the previous copy at
+# nobatyar/.github/workflows/ci.yml was silently ignored, so no commit had ever
+# been verified.
+#
+# The application lives in nobatyar/, so every `run:` step is scoped there.
 name: CI
 
 on:
@@ -8,6 +16,10 @@ on:
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: nobatyar
 
 jobs:
   quality:
@@ -25,6 +37,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
+          cache-dependency-path: nobatyar/package-lock.json
 
       - run: npm ci
 
@@ -50,6 +63,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
+          cache-dependency-path: nobatyar/package-lock.json
 
       - run: npm ci
 
@@ -72,8 +86,8 @@ jobs:
         with:
           name: playwright-report
           path: |
-            playwright-report/
-            test-results/
+            nobatyar/playwright-report/
+            nobatyar/test-results/
           retention-days: 7
 
   docker:
@@ -83,9 +97,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
+      # the Dockerfile lives in nobatyar/, so the build context is that folder
       - uses: docker/build-push-action@v6
         with:
-          context: .
+          context: ./nobatyar
+          file: ./nobatyar/Dockerfile
           push: ${{ github.ref == 'refs/heads/main' }}
           tags: |
             ghcr.io/${{ github.repository }}:latest
